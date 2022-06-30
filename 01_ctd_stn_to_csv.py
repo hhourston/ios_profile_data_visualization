@@ -58,21 +58,6 @@ def get_salinity_var(ds):
     return salinity
 
 
-# -------------------Perform some data checks first----------------------
-# # Latitude, longitude within reasonable range for each station
-# # Do later when data are in csv format
-
-# ctd_to_keep = []
-# for f in ctd_flist:
-#     flat = xr.open_dataset(f).latitude.data
-#     flon = xr.open_dataset(f).longitude.data
-#     # TODO change these numbers to +/- 0.1 degree of
-#     #  the median value for the station?
-#     if 48.4 < flat < 48.6 and -125.6 < flon < -125.4:
-#         ctd_to_keep.append(f)
-#     else:
-#         print(os.path.basename(f), 'is out of spatial range')
-
 # Depth, range, gradient checks as in NEP climatology?
 # Need to put all nc data in a csv table to make this easier
 # as in the climatology project?
@@ -99,7 +84,6 @@ for i, f in enumerate(ctd_flist):
     temp_var = get_temperature_var(ncdata)
     sal_var = get_salinity_var(ncdata)
 
-    # TODO Include pressure in dbar?
     df_add = pd.DataFrame(
         np.array([profile_number, lat_array, lon_array, time_array,
                   ncdata.depth.data, temp_var.data, sal_var.data]).transpose(),
