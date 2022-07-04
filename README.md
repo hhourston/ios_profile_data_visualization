@@ -20,4 +20,4 @@ The depth, range, and gradient checks are taken from the NCEI WOA18.
 The anomalies are computed for each binned depth that the user wants to plot. For a specific depth, the computation consists of taking the mean for each year, then taking the mean over all the yearly means (hence, a "mean of means"). 
 
 # References
-Garcia H. E., K.W. Weathers, C.R. Paver, I. Smolyar, T.P. Boyer, R.A. Locarnini, M.M. Zweng, A.V. Mishonov, O.K. Baranova, D. Seidov, and J.R. Reagan (2019). World Ocean Atlas 2018, Volume 3: Dissolved Oxygen, Apparent Oxygen Utilization, and Dissolved Oxygen Saturation. A. Mishonov Technical Editor. **NOAA Atlas NESDIS 83**, 38pp.
+Garcia H. E., K.W. Weathers, C.R. Paver, I. Smolyar, T.P. Boyer, R.A. Locarnini, M.M. Zweng, A.V. Mishonov, O.K. Baranova, D. Seidov, and J.R. Reagan (2019). World Ocean Atlas 2018, Volume 3: Dissolved Oxygen, Apparent Oxygen Utilization, and Dissolved Oxygen Saturation. A. Mishonov Technical Editor. *NOAA Atlas NESDIS 83*, 38pp.
