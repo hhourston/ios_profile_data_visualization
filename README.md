@@ -14,7 +14,7 @@ Visualization of CTD data collected by the Institute of Ocean Sciences.
 5. Plotting: Annual sampling frequency, monthly sampling frequency, filled contours, anomalies
 
 
-The first step involving the assembly of netCDF CTD data into a CSV table also includes unit conversions as needed. If not already the case, salinity is converted into PSU and oxygen is converted into $\mu mol/kg$. Temperature and fluorescence units are kept as degrees Celsius and $mg/m^3$, respectively.
+The first step involving the assembly of netCDF CTD data into a CSV table also includes unit conversions as needed. If not already the case, salinity is converted into PSS-78 and oxygen is converted into $\mu mol/kg$. Temperature and fluorescence units are kept as degrees Celsius and $mg/m^3$, respectively.
 \
 The latitude and longitude of each profile are checked to ensure that all are within +/- 0.1 decimal degrees of the median station coordinates. The median is used instead of the mean here because the former is robust to outliers.  
 \
