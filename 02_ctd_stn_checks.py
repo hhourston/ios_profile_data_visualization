@@ -62,8 +62,9 @@ def depth_inv_check(var_df):
 
 
 # Perform checks similar to WOD18
-
-ctd_infile = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\P1_ctd_data.csv'
+station = 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+ctd_infile = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+             'csv\\{}_ctd_data.csv'.format(station)
 
 ctd_df = pd.read_csv(ctd_infile)
 
@@ -98,12 +99,17 @@ range_file_T = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
 range_file_S = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
                'literature\\WOA docs\\wod18_users_manual_tables\\' \
                'wod18_ranges_PSAL_Coast_N_Pac.csv'
+range_file_O = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
+               'literature\\WOA docs\\wod18_users_manual_tables\\' \
+               'wod18_ranges_DOXY_Coast_N_Pac.csv'
 
 range_T_df = pd.read_csv(range_file_T)
 range_S_df = pd.read_csv(range_file_S)
+range_O_df = pd.read_csv(range_file_O)
 
 T_range_mask = range_check(ctd_df, range_T_df, 'Temperature [C]')
 S_range_mask = range_check(ctd_df, range_S_df, 'Salinity [PSS-78]')
+O_range_mask = range_check(ctd_df, range_O_df, 'Oxygen [mL/L]')
 
 # -----Gradient checks-----
 
@@ -117,6 +123,8 @@ T_gradient_mask = vvd_gradient_check(ctd_df, gradient_df, 'Temperature')
 
 S_gradient_mask = vvd_gradient_check(ctd_df, gradient_df, 'Salinity')
 
+O_gradient_mask = vvd_gradient_check(ctd_df, gradient_df, 'Oxygen')
+
 # -----Apply masks-----
 
 # Print summary statistics
@@ -126,22 +134,27 @@ print('Number of obs passing depth limits check:', sum(depth_lim_mask))
 print('Number of obs passing depth inversion/copy check:', sum(depth_inv_mask))
 print('Number of T obs passing range check:', sum(T_range_mask))
 print('Number of S obs passing range check:', sum(S_range_mask))
+print('Number of O obs passing range check:', sum(O_range_mask))
 print('Number of T obs passing gradient check:', sum(T_gradient_mask))
 print('Number of S obs passing gradient check:', sum(S_gradient_mask))
+print('Number of O obs passing gradient check:', sum(O_gradient_mask))
 
 # Combine masks with logical "and"
 merged_mask = latlon_mask & depth_lim_mask & depth_inv_mask
 
 T_mask = T_range_mask & T_gradient_mask
 S_mask = S_range_mask & S_gradient_mask
+O_mask = O_range_mask & O_gradient_mask
 
 # Apply the masks to the dataframe of observations
 ctd_df_out = ctd_df
 ctd_df_out.loc[~T_mask, 'Temperature [C]'] = np.nan
 ctd_df_out.loc[~S_mask, 'Salinity [PSS-78]'] = np.nan
+ctd_df_out.loc[~O_mask, 'Oxygen [mL/L]'] = np.nan
 ctd_df_out = ctd_df_out.loc[merged_mask, :]
 
 # Export the QC'ed dataframe of observations to a csv file
-df_out_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\P1_ctd_data_qc.csv'
+df_out_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+              'csv\\{}_ctd_data_qc.csv'.format(station)
 
 ctd_df_out.to_csv(df_out_name, index=False)

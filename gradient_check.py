@@ -17,6 +17,8 @@ def vvd_gradient_check(var_df, grad_df, grad_var, verbose=False):
         var_with_unit = 'Temperature [C]'
     elif grad_var == 'Salinity':
         var_with_unit = 'Salinity [PSS-78]'
+    elif grad_var == 'Oxygen':
+        var_with_unit = 'Oxygen [mL/L]'
 
     nobs = len(var_df)
 

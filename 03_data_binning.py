@@ -6,7 +6,9 @@ import numpy as np
 # Required bins: [0, 0.5), [0.5, 1.5), [1.5, 2.5), ...
 # Square bracket is inclusive, round bracket is not
 
-f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\P1_ctd_data_qc.csv'
+station = 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
+    '{}_ctd_data_qc.csv'.format(station)
 df_in = pd.read_csv(f)
 
 # Round the maximum depth value to the closest whole number

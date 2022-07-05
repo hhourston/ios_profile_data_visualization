@@ -4,8 +4,9 @@ import numpy as np
 # Flag or remove bin depth duplicates in each profile
 # if they occur
 
+station = 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
 f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
-    'P1_ctd_data_binned.csv'
+    '{}_ctd_data_binned.csv'.format(station)
 df_in = pd.read_csv(f)
 
 # Profile start indices

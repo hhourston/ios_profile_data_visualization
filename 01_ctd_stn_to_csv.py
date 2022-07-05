@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import os
 import glob
 import numpy as np
@@ -11,7 +10,9 @@ import convert
 # ctd_file = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\2002-001-0002.ctd.nc'
 # ncdata = xr.open_dataset(ctd_file)
 
-ctd_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\p1_ctd_files\\'
+station = 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+ctd_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+          '{}\\'.format(station)
 ctd_flist = glob.glob(ctd_dir + '*.nc')
 ctd_flist.sort()
 
@@ -26,6 +27,8 @@ def get_var(ds, attr_names):
         if hasattr(ds, attr):
             return getattr(ds, attr)
 
+    return None
+
 
 def get_temperature_var(ds):
     temperature_names = [
@@ -37,7 +40,7 @@ def get_temperature_var(ds):
         "TEMPS601"
     ]
     # Convert between temperature standards as well?
-    return get_var(ds, temperature_names)
+    return get_var(ds, temperature_names).data
 
 
 def get_salinity_var(ds):
@@ -55,7 +58,31 @@ def get_salinity_var(ds):
     salinity, salinity_computed = convert.convert_salinity(
         sal_variable, sal_variable.units, 'ctd_logger.txt')
 
-    return salinity
+    return salinity.data
+
+
+def get_oxygen_var(ds, temp_data, sal_data):
+    # ds: xarray dataset
+    oxygen_names = ["DOXYZZ01", "DOXMZZ01"]
+
+    oxy_variable = get_var(ds, oxygen_names)
+
+    if oxy_variable is not None:
+        oxygen, oxygen_computed, density_assumed = convert.convert_oxygen(
+            oxy_variable, oxy_variable.units, ds.longitude.data,
+            ds.latitude.data, temp_data, sal_data, ds.PRESPR01.data,
+            'ctd_logger.txt')
+        return oxygen.data
+    else:
+        # Oxygen data not present in netCDF file
+        print('Warning: oxygen data not found')
+        return np.repeat(-99, len(temp_data))
+
+
+def get_fluorescence_var(ds):
+    # Fluorescence not in netCDF files only shell files
+    fluorescence_names = []
+    return
 
 
 # Depth, range, gradient checks as in NEP climatology?
@@ -83,15 +110,22 @@ for i, f in enumerate(ctd_flist):
     # Convert temperature and salinity data as needed
     temp_var = get_temperature_var(ncdata)
     sal_var = get_salinity_var(ncdata)
+    oxy_var = get_oxygen_var(ncdata, temp_var, sal_var)
 
     df_add = pd.DataFrame(
         np.array([profile_number, lat_array, lon_array, time_array,
-                  ncdata.depth.data, temp_var.data, sal_var.data]).transpose(),
+                  ncdata.depth.data, temp_var, sal_var, oxy_var]
+                 ).transpose(),
         columns=['Profile number', 'Latitude [deg N]', 'Longitude [deg E]',
-                 'Time', 'Depth [m]', 'Temperature [C]', 'Salinity [PSS-78]'])
+                 'Time', 'Depth [m]', 'Temperature [C]',
+                 'Salinity [PSS-78]', 'Oxygen [mL/L]'])
 
     df_ctd = pd.concat([df_ctd, df_add])
 
-df_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\P1_ctd_data.csv'
+print(len(df_ctd))
+print(sum(df_ctd.loc[:, 'Oxygen [mL/L]'] != '-99'))
+
+df_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+          'csv\\{}_ctd_data.csv'.format(station)
 df_ctd.to_csv(df_name, index=False)
 
