@@ -32,7 +32,7 @@ def plot_annual_samp_freq(df, stn, png_name):
     ax.set_yticks(yticks)
     ax.set_ylabel('Number of Profiles')
     plt.legend()
-    plt.title('Station {} Sampling History'.format(stn))
+    plt.title('Station {} CTD Sampling History'.format(stn))
     plt.tight_layout()
     plt.savefig(png_name)
     plt.close(fig)
@@ -128,14 +128,14 @@ def pad_ragged_array(df, var_name, var_unit):
     time_reduced = pd.to_datetime(np.unique(df.loc[:, 'Time'])).array
 
     # Add +1 because numpy range not inclusive of end
-    min_depth_bin = np.min(df.loc[:, 'Depth bin [m]'])
-    max_depth_bin = np.max(df.loc[:, 'Depth bin [m]'])
+    min_depth_bin = int(np.min(df.loc[:, 'Depth bin [m]']))
+    max_depth_bin = int(np.max(df.loc[:, 'Depth bin [m]']))
     depth_reduced = np.arange(min_depth_bin, max_depth_bin + 1)
 
     unique_depth_mask = df.loc[:, 'Unique binned depth mask']
 
     # Apply the mask to the dataframe
-    df_updated = df.loc[unique_depth_mask]
+    df_updated = df.loc[unique_depth_mask, :]
 
     # Name of the column in the df containing the variable data
     var_column = '{} [{}]'.format(var_name, var_unit)
@@ -160,11 +160,17 @@ def pad_ragged_array(df, var_name, var_unit):
 
     for i in range(len(row_starts)):
         # Pandas indexing is inclusive of end
+        # use .to_numpy to convert to numpy array
+        # .array converts to pandas array, which can't be used
+        # as indices
         profile_depths = df_updated.loc[
-                         row_starts[i]:row_ends[i], 'Depth bin [m]']
+                         row_starts[i]:row_ends[i],
+                         'Depth bin [m]'].to_numpy(dtype='int')
         # Use the profile binned depths as the indexer
         # which may only work if the starting depth is zero
         # unless the min depth bin is subtracted
+        # print(row_starts[i], row_ends[i])
+        # print(profile_depths)
         var_arr[
             i,
             profile_depths - min_depth_bin] = df_updated.loc[
@@ -178,6 +184,8 @@ def plot_contourf(df, var_name, var_unit, stn, cmap, png_name):
     # Start by padding the ragged profiles
     time_reduced, depth_reduced, var_arr = pad_ragged_array(
         df, var_name, var_unit)
+
+    plt.clf()  # Close any open active plots
 
     # Create the plot
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -408,17 +416,10 @@ def plot_anomalies(df, var_name, var_unit, stn, png_name):
     return
 
 
-station = 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+# -----------------------------------------------------------
+station = 'LBP3'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
 f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
     '{}_ctd_data_binned_depth_dupl.csv'.format(station)
-
-variable, units, var_abbrev, colourmap = [
-    'Temperature', 'C', 'T', 'plasma']
-# variable, units, var_abbrev, colourmap = [
-#   'Salinity', 'PSS-78', 'S', 'cividis']
-# variable, units, var_abbrev, colourmap = [
-#     'Oxygen', 'mL/L', 'O', 'cividis']
-
 
 # ----------------------Plot counts per year-----------------
 hist_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
@@ -437,13 +438,37 @@ df_in = pd.read_csv(f)
 
 plot_monthly_samp_freq(df_in, station, mth_freq_fig_name)
 
+# -------------------Choose variable to plot-----------------
+# variable, units, var_abbrev, colourmap = [
+#     'Temperature', 'C', 'T', 'plasma']
+# variable, units, var_abbrev, colourmap = [
+#   'Salinity', 'PSS-78', 'S', 'cividis']
+# variable, units, var_abbrev, colourmap = [
+#     'Oxygen', 'mL/L', 'O', 'cividis']
+
+# Make dict to make iteration easier
+variable_dict = {'Temperature':
+                 {'units': 'C', 'abbrev': 'T', 'cmap': 'plasma'},
+                 'Salinity':
+                 {'units': 'PSS-78', 'abbrev': 'S', 'cmap': 'cividis'},
+                 'Oxygen':
+                 {'units': 'mL/L', 'abbrev': 'O', 'cmap': 'cividis'}}
+
 # ----------------------Plot pcolor data---------------------
-contour_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-                   'png\\{}_ctd_contourf_{}.png'.format(station, var_abbrev)
 
 df_in = pd.read_csv(f)
 
-plot_contourf(df_in, variable, units, station, colourmap, contour_fig_name)
+for key in variable_dict.keys():
+    variable = key
+    units = variable_dict[key]['units']
+    colourmap = variable_dict[key]['cmap']
+    var_abbrev = variable_dict[key]['abbrev']
+
+    contour_fig_name = 'C:\\Users\\HourstonH\\Documents\\' \
+                       'ctd_visualization\\png\\' \
+                       '{}_ctd_contourf_{}.png'.format(station, var_abbrev)
+
+    plot_contourf(df_in, variable, units, station, colourmap, contour_fig_name)
 
 # ----------------------Plot anomalies-----------------------
 anom_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \

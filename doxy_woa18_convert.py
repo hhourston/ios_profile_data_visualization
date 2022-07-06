@@ -5,7 +5,7 @@ import pandas as pd
 # Convert the ranges DOXY Coastal Pacific table from umol/kg to mL/L
 f_in = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
        'literature\\WOA docs\\wod18_users_manual_tables\\' \
-       'wod18_ranges_DOXY_Coast_N_Pac_ml.csv'
+       'wod18_ranges_DOXY_Coast_N_Pac_ml_l.csv'
 
 df_in = pd.read_csv(f_in)
 

@@ -6,7 +6,7 @@ import numpy as np
 # Required bins: [0, 0.5), [0.5, 1.5), [1.5, 2.5), ...
 # Square bracket is inclusive, round bracket is not
 
-station = 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+station = '42'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
 f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
     '{}_ctd_data_qc.csv'.format(station)
 df_in = pd.read_csv(f)

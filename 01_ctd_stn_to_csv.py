@@ -10,7 +10,7 @@ import convert
 # ctd_file = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\2002-001-0002.ctd.nc'
 # ncdata = xr.open_dataset(ctd_file)
 
-station = 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+station = 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
 ctd_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
           '{}\\'.format(station)
 ctd_flist = glob.glob(ctd_dir + '*.nc')
@@ -54,11 +54,14 @@ def get_salinity_var(ds):
     ]
     # Convert units? PPT to PSS-78?
     sal_variable = get_var(ds, salinity_names)
-
-    salinity, salinity_computed = convert.convert_salinity(
-        sal_variable, sal_variable.units, 'ctd_logger.txt')
-
-    return salinity.data
+    if sal_variable is not None:
+        salinity, salinity_computed = convert.convert_salinity(
+            sal_variable, sal_variable.units, 'ctd_logger.txt')
+        return salinity.data
+    else:
+        # Oxygen data not present in netCDF file
+        print('Warning: salinity data not found')
+        return np.repeat(-99, len(ds.depth.data))
 
 
 def get_oxygen_var(ds, temp_data, sal_data):
