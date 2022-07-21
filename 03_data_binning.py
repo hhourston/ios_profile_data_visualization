@@ -6,25 +6,41 @@ import numpy as np
 # Required bins: [0, 0.5), [0.5, 1.5), [1.5, 2.5), ...
 # Square bracket is inclusive, round bracket is not
 
-station = '42'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
-f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
-    '{}_ctd_data_qc.csv'.format(station)
-df_in = pd.read_csv(f)
 
-# Round the maximum depth value to the closest whole number
-# Returns a float not an integer
-max_depth_bin = np.round(np.max(df_in.loc[:, 'Depth [m]']), decimals=0)
+def main(station):
+    f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
+        '{}_ctd_data_qc.csv'.format(station)
+    # f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
+    #     '{}_ctd_data.csv'.format(station)
 
-depth_bins = np.concatenate((np.array([0]),
-                             np.arange(0.5, max_depth_bin + 1, 1)))
+    df_out_name = f.replace('qc', 'binned')
+    # df_out_name = f.replace('.csv', '_no_qc_binned.csv')
 
-bin_labels = [str(x) for x in depth_bins[1:] - 0.5]
+    df_in = pd.read_csv(f)
 
-df_in['Depth bin [m]'] = pd.cut(df_in['Depth [m]'], bins=depth_bins,
-                                right=False, labels=bin_labels)
+    # Round the maximum depth value to the closest whole number
+    # Returns a float not an integer
+    max_depth_bin = np.round(np.max(df_in.loc[:, 'Depth [m]']), decimals=0)
 
-# Export the dataframe to csv
-df_out_name = f.replace('qc', 'binned')
-print(df_out_name)
+    depth_bins = np.concatenate((np.array([0]),
+                                 np.arange(0.5, max_depth_bin + 1, 1)))
 
-df_in.to_csv(df_out_name, index=False)
+    bin_labels = [str(x) for x in depth_bins[1:] - 0.5]
+
+    df_in['Depth bin [m]'] = pd.cut(df_in['Depth [m]'], bins=depth_bins,
+                                    right=False, labels=bin_labels)
+
+    # Export the dataframe to csv
+    print(df_out_name)
+
+    df_in.to_csv(df_out_name, index=False)
+    return
+
+
+ctd_station = '42'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+
+ctd_stations = ['42', '59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']
+
+for s in ctd_stations:
+    main(s)
+

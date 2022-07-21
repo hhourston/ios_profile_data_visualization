@@ -180,7 +180,8 @@ def pad_ragged_array(df, var_name, var_unit):
     return time_reduced, depth_reduced, var_arr
 
 
-def plot_contourf(df, var_name, var_unit, stn, cmap, png_name):
+def plot_contourf(df, var_name, var_unit, stn, cmap, png_name,
+                  depth_lim=None):
     # Start by padding the ragged profiles
     time_reduced, depth_reduced, var_arr = pad_ragged_array(
         df, var_name, var_unit)
@@ -198,6 +199,10 @@ def plot_contourf(df, var_name, var_unit, stn, cmap, png_name):
     # Add the color bar
     cbar = fig.colorbar(f1)
     cbar.set_label('{} [{}]'.format(var_name, var_unit))
+
+    # Adjust the depth scale if specified
+    if depth_lim is not None:
+        ax.set_ylim(top=depth_lim)
 
     # Invert the y-axis so that depth increases downwards
     plt.gca().invert_yaxis()
@@ -247,8 +252,8 @@ def get_common_max_depth(df):
                                     prof_start_ind[i]:prof_end_ind[i],
                                     'Depth bin [m]'].to_list()
 
-    min_depth = np.min(df.loc[:, 'Depth bin [m]'])
-    max_depth = np.max(df.loc[:, 'Depth bin [m]'])
+    min_depth = int(np.min(df.loc[:, 'Depth bin [m]']))
+    max_depth = int(np.max(df.loc[:, 'Depth bin [m]']))
     cmax_depth = max_depth  # common max depth
 
     for i in range(max_depth, min_depth - 1, -1):
@@ -300,58 +305,6 @@ def select_binned_data(df, var_name, var_unit, select_depths):
     return data_dict
 
 
-def select_binned_data_OLD(df, var_name, var_unit):
-    # -------------------------------------------------------------
-    # Subset the variable data
-    var_col_name = '{} [{}]'.format(var_name, var_unit)
-
-    # Create mask for each select level
-    subsetter_5m = data_mask(
-        df.loc[:, 'Depth bin [m]'],
-        df.loc[:, 'Unique binned depth mask'], 5)
-    subsetter_25m = data_mask(
-        df.loc[:, 'Depth bin [m]'],
-        df.loc[:, 'Unique binned depth mask'], 25)
-    subsetter_50m = data_mask(
-        df.loc[:, 'Depth bin [m]'],
-        df.loc[:, 'Unique binned depth mask'], 50)
-    subsetter_100m = data_mask(
-        df.loc[:, 'Depth bin [m]'],
-        df.loc[:, 'Unique binned depth mask'], 100)
-    subsetter_bottom = data_mask(
-        df.loc[:, 'Depth bin [m]'],
-        df.loc[:, 'Unique binned depth mask'],
-        np.max(df.loc[:, 'Depth bin [m]']))
-
-    # Subset the variable data
-    # var_col_name = '{} [{}]'.format(var_name, var_unit)
-
-    var_5m = df.loc[subsetter_5m, var_col_name]
-    var_25m = df.loc[subsetter_25m, var_col_name]
-    var_50m = df.loc[subsetter_50m, var_col_name]
-    var_100m = df.loc[subsetter_100m, var_col_name]
-    var_bottom = df.loc[subsetter_bottom, var_col_name]
-
-    # Compute the variable anomalies
-    anom_5m = compute_anomalies(var_5m)
-    anom_25m = compute_anomalies(var_25m)
-    anom_50m = compute_anomalies(var_50m)
-    anom_100m = compute_anomalies(var_100m)
-    anom_bottom = compute_anomalies(var_bottom)
-
-    # Convert time string data to numpy datetime64
-    time_5m = pd.to_datetime(df.loc[subsetter_5m, 'Time'])
-    time_25m = pd.to_datetime(df.loc[subsetter_25m, 'Time'])
-    time_50m = pd.to_datetime(df.loc[subsetter_50m, 'Time'])
-    time_100m = pd.to_datetime(df.loc[subsetter_100m, 'Time'])
-    time_bottom = pd.to_datetime(df.loc[subsetter_bottom, 'Time'])
-
-    time_list = [time_5m, time_25m, time_50m, time_100m, time_bottom]
-    anom_list = [anom_5m, anom_25m, anom_50m, anom_100m, anom_bottom]
-
-    return time_list, anom_list
-
-
 def plot_anomalies(df, var_name, var_unit, stn, png_name):
     # Make line plot of anomalies at select depths
 
@@ -368,7 +321,12 @@ def plot_anomalies(df, var_name, var_unit, stn, png_name):
 
     # data_dict keys are
     for i, dkey in enumerate(list(data_dict.keys())):
-        ax.plot(data_dict[dkey]['time'], data_dict[dkey]['anom'],
+        # Sort data by time
+        time_sorted, anom_sorted = zip(
+            *sorted(zip(data_dict[dkey]['time'],
+                        data_dict[dkey]['anom']))
+        )
+        ax.plot(time_sorted, anom_sorted,
                 label='{}m'.format(dkey), marker=markers[i])
 
     # Add text about bottom depth
@@ -417,9 +375,21 @@ def plot_anomalies(df, var_name, var_unit, stn, png_name):
 
 
 # -----------------------------------------------------------
-station = 'LBP3'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+# Make dict to make iteration easier
+variable_dict = {'Temperature':
+                 {'units': 'C', 'abbrev': 'T', 'cmap': 'YlOrBr'},  # Reds
+                 'Salinity':
+                 {'units': 'PSS-78', 'abbrev': 'S', 'cmap': 'Blues'},
+                 'Oxygen':
+                 {'units': 'mL/L', 'abbrev': 'O', 'cmap': 'jet'}}
+
+station = '42'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+
 f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
     '{}_ctd_data_binned_depth_dupl.csv'.format(station)
+
+# f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
+#     '{}_ctd_data_no_qc_binned_depth_dupl.csv'.format(station)
 
 # ----------------------Plot counts per year-----------------
 hist_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
@@ -446,19 +416,15 @@ plot_monthly_samp_freq(df_in, station, mth_freq_fig_name)
 # variable, units, var_abbrev, colourmap = [
 #     'Oxygen', 'mL/L', 'O', 'cividis']
 
-# Make dict to make iteration easier
-variable_dict = {'Temperature':
-                 {'units': 'C', 'abbrev': 'T', 'cmap': 'plasma'},
-                 'Salinity':
-                 {'units': 'PSS-78', 'abbrev': 'S', 'cmap': 'cividis'},
-                 'Oxygen':
-                 {'units': 'mL/L', 'abbrev': 'O', 'cmap': 'cividis'}}
+# ----------------------Plot contour data---------------------
 
-# ----------------------Plot pcolor data---------------------
+# If station=LBP3, use the y limit
+y_lim = 200
 
 df_in = pd.read_csv(f)
 
 for key in variable_dict.keys():
+    print(key)
     variable = key
     units = variable_dict[key]['units']
     colourmap = variable_dict[key]['cmap']
@@ -468,16 +434,24 @@ for key in variable_dict.keys():
                        'ctd_visualization\\png\\' \
                        '{}_ctd_contourf_{}.png'.format(station, var_abbrev)
 
-    plot_contourf(df_in, variable, units, station, colourmap, contour_fig_name)
+    plot_contourf(df_in, variable, units, station, colourmap,
+                  contour_fig_name)  #, y_lim)
 
 # ----------------------Plot anomalies-----------------------
-anom_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-                'png\\{}_ctd_anomalies_{}_v3.png'.format(
-                    station, var_abbrev)
 
 df_in = pd.read_csv(f)
 
 # ddict = select_binned_data(df_in, variable, units,
 #                            select_depths=np.array([5, 25, 50, 100, 200]))
 
-plot_anomalies(df_in, variable, units, station, anom_fig_name)
+for key in variable_dict.keys():
+    variable = key
+    units = variable_dict[key]['units']
+    colourmap = variable_dict[key]['cmap']
+    var_abbrev = variable_dict[key]['abbrev']
+
+    anom_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+                    'png\\{}_ctd_anomalies_{}_v3.png'.format(
+                        station, var_abbrev)
+
+    plot_anomalies(df_in, variable, units, station, anom_fig_name)

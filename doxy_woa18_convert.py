@@ -2,6 +2,7 @@ import gsw
 import numpy as np
 import pandas as pd
 
+# ------------------------Ranges------------------------------------
 # Convert the ranges DOXY Coastal Pacific table from umol/kg to mL/L
 f_in = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
        'literature\\WOA docs\\wod18_users_manual_tables\\' \
@@ -62,7 +63,18 @@ df_in['Coast_N_Pac_max'] = [o * d / oxygen_umol_per_ml * metre_cube_per_litre
                                 df_in['density_max'].to_numpy())]
 
 f_out = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
-       'literature\\WOA docs\\wod18_users_manual_tables\\' \
-       'wod18_ranges_DOXY_Coast_N_Pac_ml_l_filled.csv'
+        'literature\\WOA docs\\wod18_users_manual_tables\\' \
+        'wod18_ranges_DOXY_Coast_N_Pac_ml_l_filled.csv'
 
 df_in.to_csv(f_out, index=False)
+
+# --------------------------------Gradients-----------------------------------
+f_in = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
+       'literature\\WOA docs\\wod18_users_manual_tables\\' \
+       'wod18_max_gradient_inversion.csv'
+
+df = pd.read_csv(f_in, index='Variable')
+
+# Calculate the pressure for the depth <400m and >400m
+
+# Calculate the Absolute Salinity
