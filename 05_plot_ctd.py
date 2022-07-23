@@ -137,6 +137,8 @@ def pad_ragged_array(df, var_name, var_unit):
     # Apply the mask to the dataframe
     df_updated = df.loc[unique_depth_mask, :]
 
+    df_updated.reset_index(inplace=True)
+
     # Name of the column in the df containing the variable data
     var_column = '{} [{}]'.format(var_name, var_unit)
 
@@ -156,7 +158,7 @@ def pad_ragged_array(df, var_name, var_unit):
 
     df_updated_len = len(df_updated)
 
-    row_ends = np.concatenate((row_starts[1:], [df_updated_len]))
+    row_ends = np.concatenate((row_starts[1:], [df_updated_len])) - 1
 
     for i in range(len(row_starts)):
         # Pandas indexing is inclusive of end
@@ -175,13 +177,60 @@ def pad_ragged_array(df, var_name, var_unit):
             i,
             profile_depths - min_depth_bin] = df_updated.loc[
                                               row_starts[i]:row_ends[i],
-                                              var_column]
+                                              var_column].to_numpy()
 
     return time_reduced, depth_reduced, var_arr
 
 
-def plot_contourf(df, var_name, var_unit, stn, cmap, png_name,
-                  depth_lim=None):
+def scatter_padded_data(df, png_name, var_name, var_unit, depth_lim=None):
+    depth_to_plot, binned = ['Depth bin [m]', True]  # 'Depth [m]'
+    # time_dt = pd.to_datetime(df.loc[:, 'Time']).to_numpy()
+
+    time_reduced, depth_reduced, var_arr = pad_ragged_array(
+        df, var_name, var_unit)
+
+    time_reduced_2d, depth_reduced_2d = np.meshgrid(
+        time_reduced, depth_reduced)
+
+    plt.scatter(time_reduced_2d[~np.isnan(var_arr.T)],
+                depth_reduced_2d[~np.isnan(var_arr.T)], s=1, alpha=0.5)
+    # plt.scatter(time_dt, df.loc[:, depth_to_plot], s=1,
+    #             alpha=0.5)
+
+    # Adjust the depth scale if specified
+    if depth_lim is not None:
+        plt.ylim(top=depth_lim)
+
+    # Invert the y-axis so that depth increases downwards
+    plt.gca().invert_yaxis()
+
+    plt.ylabel(depth_to_plot)
+
+    if binned:
+        plt.title('Station {} QC depth binned'.format(station))
+    else:
+        plt.title('Station {} QC depth unbinned'.format(station))
+
+    plt.tight_layout()
+
+    plt.savefig(png_name)
+    plt.close()
+    return
+
+
+def plot_contourf(ax, time_reduced, depth_reduced, var_arr, cmap):
+    return ax.contourf(time_reduced, depth_reduced, var_arr, cmap=cmap)
+
+
+def plot_pcolormesh(ax, time_reduced, depth_reduced, var_arr, cmap):
+    return ax.pcolormesh(time_reduced, depth_reduced, var_arr, cmap=cmap,
+                         shading='auto')
+
+
+def plot_2d(df, var_name, var_unit, stn, cmap, png_name,
+            plot_fn, depth_lim=None):
+    # plot_fn: either plot_contourf() or plot_pcolormesh()
+
     # Start by padding the ragged profiles
     time_reduced, depth_reduced, var_arr = pad_ragged_array(
         df, var_name, var_unit)
@@ -193,8 +242,7 @@ def plot_contourf(df, var_name, var_unit, stn, cmap, png_name,
     # f1 = ax.pcolormesh(time_reduced, depth_reduced, var_arr.T,
     #                    cmap='hsv', shading='auto')
 
-    f1 = ax.contourf(time_reduced, depth_reduced, var_arr.T,
-                     cmap=cmap)
+    f1 = plot_fn(ax, time_reduced, depth_reduced, var_arr.T, cmap=cmap)
 
     # Add the color bar
     cbar = fig.colorbar(f1)
@@ -383,7 +431,8 @@ variable_dict = {'Temperature':
                  'Oxygen':
                  {'units': 'mL/L', 'abbrev': 'O', 'cmap': 'jet'}}
 
-station = '42'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+# 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+station = 'LBP3'
 
 f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
     '{}_ctd_data_binned_depth_dupl.csv'.format(station)
@@ -434,8 +483,27 @@ for key in variable_dict.keys():
                        'ctd_visualization\\png\\' \
                        '{}_ctd_contourf_{}.png'.format(station, var_abbrev)
 
-    plot_contourf(df_in, variable, units, station, colourmap,
-                  contour_fig_name)  #, y_lim)
+    plot_2d(df_in, variable, units, station, colourmap,
+            contour_fig_name, plot_contourf, y_lim)
+
+# ----------------------Plot pcolormesh data----------------
+# To compare against data gaps in contourf data
+
+df_in = pd.read_csv(f)
+
+for key in variable_dict.keys():
+    print(key)
+    variable = key
+    units = variable_dict[key]['units']
+    colourmap = variable_dict[key]['cmap']
+    var_abbrev = variable_dict[key]['abbrev']
+
+    contour_fig_name = 'C:\\Users\\HourstonH\\Documents\\' \
+                       'ctd_visualization\\png\\' \
+                       '{}_ctd_pcolormesh_{}.png'.format(station, var_abbrev)
+
+    plot_2d(df_in, variable, units, station, colourmap,
+            contour_fig_name, plot_pcolormesh)
 
 # ----------------------Plot anomalies-----------------------
 
@@ -455,3 +523,14 @@ for key in variable_dict.keys():
                         station, var_abbrev)
 
     plot_anomalies(df_in, variable, units, station, anom_fig_name)
+
+# ---------------------------scatter padded data--------------------------
+
+df_in = pd.read_csv(f)
+
+figname = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+              'png_noQC\\{}_ctd_qc_binned_padded_scatter.png'.format(station)
+
+variable = 'Temperature'
+units = variable_dict[variable]['units']
+scatter_padded_data(df_in, figname, variable, units)
