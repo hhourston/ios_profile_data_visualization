@@ -367,18 +367,24 @@ def plot_anomalies(df, var_name, var_unit, stn, png_name):
     markers = ['o', '^', 's', 'x', 'v', '*', '+']
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # data_dict keys are
+    # data_dict keys are the selected depths
     for i, dkey in enumerate(list(data_dict.keys())):
         # Sort data by time
         time_sorted, anom_sorted = zip(
             *sorted(zip(data_dict[dkey]['time'],
                         data_dict[dkey]['anom']))
         )
-        ax.plot(time_sorted, anom_sorted,
+        # print(time_sorted, anom_sorted, sep='\n')
+        # Convert from tuple to array in order to remove nans
+        time_sorted_arr = np.asarray(time_sorted)
+        anom_sorted_arr = np.asarray(anom_sorted)
+        not_na_mask = ~pd.isna(anom_sorted_arr)
+        time_filtered = time_sorted_arr[not_na_mask]
+        anom_filtered = anom_sorted_arr[not_na_mask]
+        ax.plot(time_filtered, anom_filtered,
                 label='{}m'.format(dkey), marker=markers[i])
 
     # Add text about bottom depth
-    # TODO figure out where to put the text on each plot
     # By default, this is in data coordinates.
     text_xloc, text_yloc = [0.95, 0.01]
     # Transform the coordinates from data to plot coordinates
@@ -432,7 +438,7 @@ variable_dict = {'Temperature':
                  {'units': 'mL/L', 'abbrev': 'O', 'cmap': 'jet'}}
 
 # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
-station = 'LBP3'
+station = 'GEO1'
 
 f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
     '{}_ctd_data_binned_depth_dupl.csv'.format(station)
@@ -468,7 +474,7 @@ plot_monthly_samp_freq(df_in, station, mth_freq_fig_name)
 # ----------------------Plot contour data---------------------
 
 # If station=LBP3, use the y limit
-y_lim = 200
+# y_lim = 200
 
 df_in = pd.read_csv(f)
 
@@ -484,7 +490,7 @@ for key in variable_dict.keys():
                        '{}_ctd_contourf_{}.png'.format(station, var_abbrev)
 
     plot_2d(df_in, variable, units, station, colourmap,
-            contour_fig_name, plot_contourf, y_lim)
+            contour_fig_name, plot_contourf)  # , y_lim)
 
 # ----------------------Plot pcolormesh data----------------
 # To compare against data gaps in contourf data
@@ -519,10 +525,29 @@ for key in variable_dict.keys():
     var_abbrev = variable_dict[key]['abbrev']
 
     anom_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-                    'png\\{}_ctd_anomalies_{}_v3.png'.format(
+                    'png\\{}_ctd_anomalies_{}_v4.png'.format(
                         station, var_abbrev)
 
     plot_anomalies(df_in, variable, units, station, anom_fig_name)
+
+
+# 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+stations = ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']
+for station in stations:
+    f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
+        '{}_ctd_data_binned_depth_dupl.csv'.format(station)
+    df_in = pd.read_csv(f)
+    for key in variable_dict.keys():
+        variable = key
+        units = variable_dict[key]['units']
+        colourmap = variable_dict[key]['cmap']
+        var_abbrev = variable_dict[key]['abbrev']
+
+        anom_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+                        'png\\{}_ctd_anomalies_{}_v4.png'.format(
+                            station, var_abbrev)
+
+        plot_anomalies(df_in, variable, units, station, anom_fig_name)
 
 # ---------------------------scatter padded data--------------------------
 
