@@ -18,7 +18,7 @@ Visualization of netCDF CTD data collected by the Institute of Ocean Sciences. S
 # Plot oxygen data on density surfaces
 6. Compute the density at each observed level in the data using TEOS-10
 7. Interpolate data from step 2b onto the constant density surfaces 26.9, 26.7 and 26.5 (representing potential densities of 1026.9 $kg/m^3$ to 1026.5 $kg/m^3$).
-8. Make scatter plots of oxygen on the density surfaces defined in step 7 (as in Crawford and Pena, 2020)
+8. Make scatter plots of oxygen on the density surfaces defined in step 7 (as in Crawford and Pena, 2021)
 
 The first step involving the assembly of netCDF CTD data into a CSV table also includes unit conversions as needed. If not already the case, salinity is converted into PSS-78 and oxygen is converted into $\mu mol/kg$. Temperature and fluorescence units are kept as degrees Celsius and $mg/m^3$, respectively.
 \
