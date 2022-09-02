@@ -1,5 +1,7 @@
 __author__ = 'James Hannah'
 
+import numpy as np
+
 """File copied from 
 https://github.com/cyborgsphinx/ios-inlets/blob/main/convert.py
 """
@@ -77,32 +79,66 @@ def convert_percent_to_mL_L(
     salinity_SP,
     filename="no filename given",
 ):
+    # fix conversion
     if temperature_C is not None and salinity_SP is not None:
-        # function from en.wikipedia.org/wiki/Oxygenation_(environmental)
-        kelven_offset = 273.15
-        temperature_K = [t + kelven_offset for t in temperature_C]
-        A1 = -173.4292
-        A2 = 249.6339
-        A3 = 143.3483
-        A4 = -21.8492
-        B1 = -0.033096
-        B2 = 0.014259
-        B3 = -0.001700
-        return numpy.fromiter(
+        T90_to_T68 = 1.00024
+        kelvin_offset = 273.15
+        temperature_C_T68 = temperature_C * T90_to_T68
+        # Scale as per GG
+        x = np.log((298.15 - temperature_C_T68)/(kelvin_offset + temperature_C_T68))
+        # constants for Eqn (8) of Garcia and Gordon 1992 for fit to Benson
+        # and Krause data (cm3/dm2 = ml/l)
+        a0 = 2.00907
+        a1 = 3.22014
+        a2 = 4.05010
+        a3 = 4.94457
+        a4 = -2.56847e-1
+        a5 = 3.88767
+        b0 = -6.24523e-3
+        b1 = -7.37614e-3
+        b2 = -1.03410e-2
+        b3 = -8.17083e-3
+        c0 = -4.88682e-7
+        # Eqn (8) of Garcia and Gordon 1992
+        lnC = np.fromiter(
             (
-                (o / 100)
-                * math.exp(
-                    A1
-                    + (A2 * 100 / t)
-                    + (A3 * math.log(t / 100))
-                    + (A4 * t / 100)
-                    + (s * (B1 + (B2 * t / 100) + (B3 * ((t / 100) ** 2))))
-                )
-                for o, t, s in zip(oxygen_percent, temperature_K, salinity_SP)
+                a0 + a1*xi + a2*(xi**2) + a3*(xi**3) + a4*(xi**4)
+                + a5*(xi**5)
+                + S*(b0 + b1*xi + b2*(xi**2) + b3*(xi**3)) + c0*(S**2)
+                for S, xi in zip(salinity_SP, x)
             ),
             float,
-            count=len(oxygen_percent),
+            count=len(oxygen_percent)
         )
+        oxsol = np.exp(lnC)
+        oxygen_ml_l = oxygen_percent * oxsol / 100
+        return oxygen_ml_l
+        # -----------------------------------------------------------
+        # # function from en.wikipedia.org/wiki/Oxygenation_(environmental)
+        # kelvin_offset = 273.15
+        # temperature_K = [t + kelvin_offset for t in temperature_C]
+        # A1 = -173.4292
+        # A2 = 249.6339
+        # A3 = 143.3483
+        # A4 = -21.8492
+        # B1 = -0.033096
+        # B2 = 0.014259
+        # B3 = -0.001700
+        # return numpy.fromiter(
+        #     (
+        #         (o / 100)
+        #         * math.exp(
+        #             A1
+        #             + (A2 * 100 / t)
+        #             + (A3 * math.log(t / 100))
+        #             + (A4 * t / 100)
+        #             + (s * (B1 + (B2 * t / 100) + (B3 * ((t / 100) ** 2))))
+        #         )
+        #         for o, t, s in zip(oxygen_percent, temperature_K, salinity_SP)
+        #     ),
+        #     float,
+        #     count=len(oxygen_percent),
+        # )
     else:
         logging.warning(
             f"Not enough data from {filename} to convert oxygen from % to mL/L. Ignoring file"

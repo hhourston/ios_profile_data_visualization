@@ -3,46 +3,47 @@ import pandas as pd
 import numpy as np
 from gradient_check import vvd_gradient_check
 from tqdm import trange
+import os
 
 
-def oxy_ml_l_to_umol_kg(var_df):
-
-    oxygen_umol_per_ml = 44.661
-    metre_cube_per_litre = 0.001
-
-    # mask_not_99 = var_df.loc[:, 'Oxygen [mL/L]'].to_numpy() != -99
-
-    # Calculate pressure
-    # Calculate absolute salinity
-    # Calculate conservative temperature
-    # Calculate density
-    # Convert oxygen from ml/l to umol/kg
-    pressure_dbar = gsw.p_from_z(
-        -var_df.loc[:, 'Depth [m]'].to_numpy(),
-        var_df.loc[:, 'Latitude [deg N]'].to_numpy())
-    salinity_SA = gsw.SA_from_SP(
-        var_df.loc[:, 'Salinity [PSS-78]'].to_numpy(),
-        pressure_dbar,
-        var_df.loc[:, 'Longitude [deg E]'].to_numpy(),
-        var_df.loc[:, 'Latitude [deg N]'].to_numpy())
-    temperature_CT = gsw.CT_from_t(
-        salinity_SA, var_df.loc[:, 'Temperature [C]'].to_numpy(),
-        pressure_dbar)
-    density = gsw.rho(salinity_SA, temperature_CT, pressure_dbar)
-
-    # oxygen_umol = np.repeat(-99, len(var_df.loc[:, 'Oxygen [mL/L]']))
-    # oxygen_umol[mask_not_99] = [
-    #     o / d * oxygen_umol_per_ml/metre_cube_per_litre
-    #     for o, d in zip(
-    #         var_df.loc[mask_not_99, 'Oxygen [mL/L]'].to_numpy(),
-    #         density[mask_not_99])]
-    oxygen_umol = [
-        o / d * oxygen_umol_per_ml / metre_cube_per_litre
-        for o, d in zip(
-            var_df.loc[:, 'Oxygen [mL/L]'].to_numpy(),
-            density)]
-
-    return np.array(oxygen_umol)
+# def oxy_ml_l_to_umol_kg(var_df):
+#
+#     oxygen_umol_per_ml = 44.661
+#     metre_cube_per_litre = 0.001
+#
+#     # mask_not_99 = var_df.loc[:, 'Oxygen [umol/kg]'].to_numpy() != -99
+#
+#     # Calculate pressure
+#     # Calculate absolute salinity
+#     # Calculate conservative temperature
+#     # Calculate density
+#     # Convert oxygen from ml/l to umol/kg
+#     pressure_dbar = gsw.p_from_z(
+#         -var_df.loc[:, 'Depth [m]'].to_numpy(),
+#         var_df.loc[:, 'Latitude [deg N]'].to_numpy())
+#     salinity_SA = gsw.SA_from_SP(
+#         var_df.loc[:, 'Salinity [PSS-78]'].to_numpy(),
+#         pressure_dbar,
+#         var_df.loc[:, 'Longitude [deg E]'].to_numpy(),
+#         var_df.loc[:, 'Latitude [deg N]'].to_numpy())
+#     temperature_CT = gsw.CT_from_t(
+#         salinity_SA, var_df.loc[:, 'Temperature [C]'].to_numpy(),
+#         pressure_dbar)
+#     density = gsw.rho(salinity_SA, temperature_CT, pressure_dbar)
+#
+#     # oxygen_umol = np.repeat(-99, len(var_df.loc[:, 'Oxygen [mL/L]']))
+#     # oxygen_umol[mask_not_99] = [
+#     #     o / d * oxygen_umol_per_ml/metre_cube_per_litre
+#     #     for o, d in zip(
+#     #         var_df.loc[mask_not_99, 'Oxygen [mL/L]'].to_numpy(),
+#     #         density[mask_not_99])]
+#     oxygen_umol = [
+#         o / d * oxygen_umol_per_ml / metre_cube_per_litre
+#         for o, d in zip(
+#             var_df.loc[:, 'Oxygen [mL/L]'].to_numpy(),
+#             density)]
+#
+#     return np.array(oxygen_umol)
 
 
 def range_check(depth, var_data, range_df):
@@ -108,11 +109,8 @@ def depth_inv_check(var_df):
     return depth_inv_copy_mask
 
 
-def main(station):
-    ctd_infile = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-                 'csv\\{}_ctd_data.csv'.format(station)
-
-    ctd_df = pd.read_csv(ctd_infile)
+def main(station, inFilePath, outFilePath):
+    ctd_df = pd.read_csv(inFilePath)
 
     # Lat/lon checks
     # Median robust to outliers compared to mean
@@ -183,21 +181,24 @@ def main(station):
     range_O_df = pd.read_csv(range_file_O)
 
     # Make sure O ranges are in the right units for comparing to WOA18
-    o_umol = oxy_ml_l_to_umol_kg(ctd_df_out)
+    # o_umol = oxy_ml_l_to_umol_kg(ctd_df_out)
 
     T_range_mask = range_check(
-        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(),
-        ctd_df_out.loc[:, 'Temperature [C]'].to_numpy(), range_T_df)
+        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(dtype=float),
+        ctd_df_out.loc[:, 'Temperature [C]'].to_numpy(dtype=float),
+        range_T_df)
     S_range_mask = range_check(
-        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(),
-        ctd_df_out.loc[:, 'Salinity [PSS-78]'].to_numpy(), range_S_df)
+        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(dtype=float),
+        ctd_df_out.loc[:, 'Salinity [PSS-78]'].to_numpy(dtype=float),
+        range_S_df)
     O_range_mask = range_check(
-        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(),
-        o_umol, range_O_df)
+        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(dtype=float),
+        ctd_df_out.loc[:, 'Oxygen [umol/kg]'].to_numpy(dtype=float),
+        range_O_df)
 
     ctd_df_out.loc[~T_range_mask, 'Temperature [C]'] = np.nan
     ctd_df_out.loc[~S_range_mask, 'Salinity [PSS-78]'] = np.nan
-    ctd_df_out.loc[~O_range_mask, 'Oxygen [mL/L]'] = np.nan
+    ctd_df_out.loc[~O_range_mask, 'Oxygen [umol/kg]'] = np.nan
 
     # -----Gradient checks-----
 
@@ -208,23 +209,24 @@ def main(station):
     gradient_df = pd.read_csv(gradient_file, index_col='Variable')
 
     T_gradient_mask = vvd_gradient_check(
-        ctd_df_out.loc[:, 'Profile number'].to_numpy(),
-        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(),
-        ctd_df_out.loc[:, 'Temperature [C]'].to_numpy(),
+        ctd_df_out.loc[:, 'Profile number'].to_numpy(dtype=int),
+        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(dtype=float),
+        ctd_df_out.loc[:, 'Temperature [C]'].to_numpy(dtype=float),
         gradient_df, 'Temperature')
     S_gradient_mask = vvd_gradient_check(
-        ctd_df_out.loc[:, 'Profile number'].to_numpy(),
-        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(),
-        ctd_df_out.loc[:, 'Salinity [PSS-78]'].to_numpy(),
+        ctd_df_out.loc[:, 'Profile number'].to_numpy(dtype=int),
+        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(dtype=float),
+        ctd_df_out.loc[:, 'Salinity [PSS-78]'].to_numpy(dtype=float),
         gradient_df, 'Salinity')
     O_gradient_mask = vvd_gradient_check(
         ctd_df_out.loc[:, 'Profile number'].to_numpy(),
-        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(),
-        o_umol, gradient_df, 'Oxygen')
+        ctd_df_out.loc[:, 'Depth [m]'].to_numpy(dtype=float),
+        ctd_df_out.loc[:, 'Oxygen [umol/kg]'].to_numpy(dtype=float),
+        gradient_df, 'Oxygen')
 
     ctd_df_out.loc[~T_gradient_mask, 'Temperature [C]'] = np.nan
     ctd_df_out.loc[~S_gradient_mask, 'Salinity [PSS-78]'] = np.nan
-    ctd_df_out.loc[~O_gradient_mask, 'Oxygen [mL/L]'] = np.nan
+    ctd_df_out.loc[~O_gradient_mask, 'Oxygen [umol/kg]'] = np.nan
 
     # -----Apply masks-----
 
@@ -251,18 +253,26 @@ def main(station):
     # ctd_df_out = ctd_df
     # ctd_df_out.loc[~T_mask, 'Temperature [C]'] = np.nan
     # ctd_df_out.loc[~S_mask, 'Salinity [PSS-78]'] = np.nan
-    # ctd_df_out.loc[~O_mask, 'Oxygen [mL/L]'] = np.nan
+    # ctd_df_out.loc[~O_mask, 'Oxygen [umol/kg]'] = np.nan
     # ctd_df_out = ctd_df_out.loc[merged_mask, :]
 
     # Export the QC'ed dataframe of observations to a csv file
-    df_out_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-                  'csv\\{}_ctd_data_qc.csv'.format(station)
+    ctd_df_out.to_csv(outFilePath, index=False)
 
-    ctd_df_out.to_csv(df_out_name, index=False)
-
-    return df_out_name
+    return
 
 
-ctd_station = 'LB08'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+# 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+# P4 P26
+sampling_station = 'P4'
+# data_types = 'ctd'
+data_types = 'CTD_BOT_CHE'
 
-main(ctd_station)
+data_file_path = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+                 'line_P_data_products\\csv\\01_convert\\' \
+                 '{}_{}_data.csv'.format(sampling_station, data_types)
+output_file_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+                  'line_P_data_products\\csv\\02_QC\\'
+output_file_path = os.path.join(output_file_dir,
+                                os.path.basename(data_file_path))
+main(sampling_station, data_file_path, output_file_path)

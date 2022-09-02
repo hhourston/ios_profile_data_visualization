@@ -2,44 +2,46 @@ import matplotlib.pyplot as plt
 import matplotlib
 import pandas as pd
 import numpy as np
+import os
 # import datetime
 
 
-def plot_annual_samp_freq(df, stn, png_name):
+def plot_annual_samp_freq(df, stn, instruments, png_name):
     # Get data in right format
 
     # Get indices of all the row (profile) starts and ends
     profile_starts = np.unique(df.loc[:, 'Profile number'],
                                return_index=True)[1]
 
-    # Reduce time from flattened 2D array to 1D array
-    time_reduced = pd.to_datetime(
-        (df.loc[profile_starts, 'Time'])).array
+    # Reduce time from flattened 2D object to 1D object
+    year_reduced = pd.to_datetime(
+        (df.loc[profile_starts, 'Time'])).dt.year  # .to_numpy()
 
     num_profs = len(profile_starts)
-    num_bins = max(time_reduced.year) - min(time_reduced.year) + 1
+    num_bins = max(year_reduced) - min(year_reduced) + 1
 
     # Manually assign y axis ticks to have only whole number ticks
-    num_yticks = max(np.unique(time_reduced.year,
+    num_yticks = max(np.unique(year_reduced,
                                return_counts=True)[1])
     yticks = np.arange(num_yticks + 1)
 
     plt.clf()  # Clear any active plots
     fig, ax = plt.subplots()  # Create a new figure and axis instance
 
-    ax.hist(time_reduced.year, bins=num_bins, align='left',
+    ax.hist(year_reduced, bins=num_bins, align='left',
             label='Number of files: {}'.format(num_profs))
     ax.set_yticks(yticks)
     ax.set_ylabel('Number of Profiles')
     plt.legend()
-    plt.title('Station {} CTD Sampling History'.format(stn))
+    instruments = instruments.replace('_', ' ')
+    plt.title('Station {} {} Sampling History'.format(stn, instruments))
     plt.tight_layout()
     plt.savefig(png_name)
     plt.close(fig)
     return
 
 
-def plot_monthly_samp_freq(df, stn, png_name):
+def plot_monthly_samp_freq(df, stn, instruments, png_name):
     # Followed James Hannah's ios-inlets plot code
     # And
     # https://matplotlib.org/stable/gallery/images_contours_and_fields/image_annotated_heatmap.html#sphx-glr-gallery-images-contours-and-fields-image-annotated-heatmap-py
@@ -59,7 +61,7 @@ def plot_monthly_samp_freq(df, stn, png_name):
     ]
 
     # Reduce time from flattened 2D array to 1D array
-    time_reduced = pd.to_datetime(np.unique(df.loc[:, 'Time'])).array
+    time_reduced = pd.to_datetime(np.unique(df.loc[:, 'Time']))
 
     # ----------author: James Hannah-----------
     # Get the oceanographic variable values
@@ -107,8 +109,9 @@ def plot_monthly_samp_freq(df, stn, png_name):
                 color="k",
                 fontsize="large",
             )
-
-    plt.title('Station {} CTD Sampling Frequency by Month'.format(stn))
+    instruments = instruments.replace('_', ' ')
+    plt.title('Station {} {} Sampling Frequency by Month'.format(
+        stn, instruments))
     plt.axis('tight')
     plt.colorbar()
     plt.savefig(png_name)
@@ -121,7 +124,7 @@ def plot_monthly_samp_freq(df, stn, png_name):
     return
 
 
-def pad_ragged_array(df, var_name, var_unit):
+def pad_ragged_array(df, var_column_name):
     # https://stackoverflow.com/questions/16346506/representing-a-ragged-array-in-numpy-by-padding
 
     # Reduce time from flattened 2D array to 1D array
@@ -138,9 +141,6 @@ def pad_ragged_array(df, var_name, var_unit):
     df_updated = df.loc[unique_depth_mask, :]
 
     df_updated.reset_index(inplace=True)
-
-    # Name of the column in the df containing the variable data
-    var_column = '{} [{}]'.format(var_name, var_unit)
 
     padding_value = np.nan
 
@@ -177,7 +177,7 @@ def pad_ragged_array(df, var_name, var_unit):
             i,
             profile_depths - min_depth_bin] = df_updated.loc[
                                               row_starts[i]:row_ends[i],
-                                              var_column].to_numpy()
+                                              var_column_name].to_numpy()
 
     return time_reduced, depth_reduced, var_arr
 
@@ -186,8 +186,11 @@ def scatter_padded_data(df, png_name, var_name, var_unit, depth_lim=None):
     depth_to_plot, binned = ['Depth bin [m]', True]  # 'Depth [m]'
     # time_dt = pd.to_datetime(df.loc[:, 'Time']).to_numpy()
 
+    # Name of the column in the df containing the variable data
+    var_column = '{} [{}]'.format(var_name, var_unit)
+
     time_reduced, depth_reduced, var_arr = pad_ragged_array(
-        df, var_name, var_unit)
+        df, var_column)
 
     time_reduced_2d, depth_reduced_2d = np.meshgrid(
         time_reduced, depth_reduced)
@@ -227,13 +230,32 @@ def plot_pcolormesh(ax, time_reduced, depth_reduced, var_arr, cmap):
                          shading='auto')
 
 
-def plot_2d(df, var_name, var_unit, stn, cmap, png_name,
-            plot_fn, depth_lim=None):
+def plot_3d(df, var_name, var_unit, stn, instruments, cmap, png_name,
+            plot_fn, plot_anom=False, depth_lim=None):
     # plot_fn: either plot_contourf() or plot_pcolormesh()
+
+    # Column name of the variable in the dataframe
+    var_col_name = '{} [{}]'.format(var_name, var_unit)
+    anom_col_name = '{} anomaly [{}]'.format(var_name, var_unit)
+
+    if plot_anom:
+        # Anomalies must be computed at each binned depth
+        df[anom_col_name] = compute_anomalies_all_depths(
+            data_all=df.loc[:, var_col_name], time=df.loc[:, 'Time'],
+            binned_depths=df.loc[:, 'Depth bin [m]'],
+            unique_depth_mask=df.loc[:, 'Unique binned depth mask'])
+        # Choose name of which data to plot
+        data_to_pad = anom_col_name
+        # Bit to add to the plot title
+        is_anom_title = ' anomalies'
+    else:
+        # Choose name of which data to plot
+        data_to_pad = var_col_name
+        is_anom_title = ''
 
     # Start by padding the ragged profiles
     time_reduced, depth_reduced, var_arr = pad_ragged_array(
-        df, var_name, var_unit)
+        df, data_to_pad)
 
     plt.clf()  # Close any open active plots
 
@@ -246,7 +268,7 @@ def plot_2d(df, var_name, var_unit, stn, cmap, png_name,
 
     # Add the color bar
     cbar = fig.colorbar(f1)
-    cbar.set_label('{} [{}]'.format(var_name, var_unit))
+    cbar.set_label(var_col_name)
 
     # Adjust the depth scale if specified
     if depth_lim is not None:
@@ -255,9 +277,13 @@ def plot_2d(df, var_name, var_unit, stn, cmap, png_name,
     # Invert the y-axis so that depth increases downwards
     plt.gca().invert_yaxis()
 
+    instruments = instruments.replace('_', ' ')
+
     ax.set_xlabel('Time')
     ax.set_ylabel('Depth [m]')
-    plt.title('Station {} CTD {}'.format(stn, var_name))
+    instruments = instruments.replace('_', ' ')
+    plt.title('Station {} {} {}{}'.format(stn, instruments,
+                                          var_name, is_anom_title))
 
     plt.tight_layout()
 
@@ -274,6 +300,7 @@ def data_mask(depth_binned, unique_depth_mask, select_depth):
 def compute_anomalies(data, time):
     # Compute anomalies for a single depth
     # For each depth, calculate the average of each year
+    # "data" is the data at a single depth
     # then take the average over all the years
 
     years = np.arange(np.min(time.dt.year),
@@ -286,6 +313,23 @@ def compute_anomalies(data, time):
 
     all_time_mean = np.nanmean(yearly_means)
     return all_time_mean, data - all_time_mean
+
+
+def compute_anomalies_all_depths(data_all, time, binned_depths,
+                                 unique_depth_mask):
+    # data_all is a dataframe column
+    # time is a dataframe column
+    depths = np.unique(binned_depths.to_numpy())
+
+    # Initialize df column to hold anomaly data
+    anom_column = pd.Series(np.zeros(len(data_all)))
+
+    # Compute anomalies for each depth
+    for d in depths:
+        depth_mask = data_mask(binned_depths, unique_depth_mask, d)
+        anom_column.loc[depth_mask] = compute_anomalies(
+            data_all.loc[depth_mask], time.loc[depth_mask])[1]
+    return anom_column
 
 
 def get_common_max_depth(df):
@@ -326,13 +370,17 @@ def select_binned_data(df, var_name, var_unit, select_depths):
     # Subset the variable data
     var_col_name = '{} [{}]'.format(var_name, var_unit)
 
+    # Get the maximum depth that at least 50% of profiles contain
     max_common_depth = get_common_max_depth(df)
 
+    # Select the depths that will be plotted
     select_depths = np.concatenate((
         select_depths[select_depths < max_common_depth],
         [max_common_depth]
     ))
 
+    # Create a data dictionary for containing anomaly data at the
+    # select depths
     data_dict = {}
     for d in select_depths:
         data_dict[d] = {}
@@ -353,7 +401,8 @@ def select_binned_data(df, var_name, var_unit, select_depths):
     return data_dict
 
 
-def plot_anomalies(df, var_name, var_unit, stn, png_name):
+def plot_anomalies_select(df, var_name, var_unit, stn, instruments,
+                          png_name):
     # Make line plot of anomalies at select depths
 
     # Need as array and not list to take advantage of
@@ -415,7 +464,9 @@ def plot_anomalies(df, var_name, var_unit, stn, png_name):
     ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left',
               borderaxespad=0)
 
-    plt.title('Station {} CTD {} anomalies'.format(stn, var_name))
+    instruments = instruments.replace('_', ' ')
+    plt.title('Station {} {} {} anomalies'.format(stn, instruments,
+                                                  var_name))
 
     plt.tight_layout()
     # fig.subplots_adjust(top=0.01)  # Add extra headspace
@@ -430,38 +481,52 @@ def plot_anomalies(df, var_name, var_unit, stn, png_name):
 
 # -----------------------------------------------------------
 # Make dict to make iteration easier
+# variable_dict = {'Temperature':
+#                  {'units': 'C', 'abbrev': 'T', 'cmap': 'plasma'},  # Reds
+#                  'Salinity':
+#                  {'units': 'PSS-78', 'abbrev': 'S', 'cmap': 'Blues'},
+#                  'Oxygen':
+#                  {'units': 'mL/L', 'abbrev': 'O', 'cmap': 'jet'}}
 variable_dict = {'Temperature':
-                 {'units': 'C', 'abbrev': 'T', 'cmap': 'YlOrBr'},  # Reds
+                 {'units': 'C', 'abbrev': 'T', 'cmap': 'plasma'},  # Reds
                  'Salinity':
                  {'units': 'PSS-78', 'abbrev': 'S', 'cmap': 'Blues'},
                  'Oxygen':
-                 {'units': 'mL/L', 'abbrev': 'O', 'cmap': 'jet'}}
+                 {'units': 'umol/kg', 'abbrev': 'O', 'cmap': 'jet'}}
 
 # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
-station = 'GEO1'
+# station = '42'
+# instrument_types = 'CTD'
+# input_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\'
+# output_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\png\\'
+# f = os.path.join(input_dir,
+#                  '{}_ctd_data_binned_depth_dupl.csv'.format(station))
 
-f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
-    '{}_ctd_data_binned_depth_dupl.csv'.format(station)
-
-# f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
-#     '{}_ctd_data_no_qc_binned_depth_dupl.csv'.format(station)
+# P4 P26
+station = 'P4'
+instrument_types = 'CTD_BOT_CHE'
+input_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+            'line_P_data_products\\csv\\02b_inexact_duplicate_check\\'
+output_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+             'line_P_data_products\\csv\\05_plot_diagnostic\\'
+f = os.path.join(input_dir, '{}_{}_data.csv'.format(
+    station, instrument_types))
 
 # ----------------------Plot counts per year-----------------
-hist_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-                'png\\{}_ctd_annual_freq.png'.format(station)
+hist_fig_name = os.path.join(
+    output_dir, '{}_{}_annual_freq.png'.format(station, instrument_types))
 
 df_in = pd.read_csv(f)
 
-plot_annual_samp_freq(df_in, station, hist_fig_name)
+plot_annual_samp_freq(df_in, station, instrument_types, hist_fig_name)
 
 # ----------------------Plot counts per month per year ------
-mth_freq_fig_name = 'C:\\Users\\HourstonH\\Documents\\' \
-                    'ctd_visualization\\png\\' \
-                    '{}_ctd_monthly_freq.png'.format(station)
+mth_freq_fig_name = os.path.join(
+    output_dir, '{}_{}_monthly_freq.png'.format(station, instrument_types))
 
 df_in = pd.read_csv(f)
 
-plot_monthly_samp_freq(df_in, station, mth_freq_fig_name)
+plot_monthly_samp_freq(df_in, station, instrument_types, mth_freq_fig_name)
 
 # -------------------Choose variable to plot-----------------
 # variable, units, var_abbrev, colourmap = [
@@ -485,12 +550,36 @@ for key in variable_dict.keys():
     colourmap = variable_dict[key]['cmap']
     var_abbrev = variable_dict[key]['abbrev']
 
-    contour_fig_name = 'C:\\Users\\HourstonH\\Documents\\' \
-                       'ctd_visualization\\png\\' \
-                       '{}_ctd_contourf_{}.png'.format(station, var_abbrev)
+    contour_fig_name = os.path.join(
+        output_dir, '{}_{}_contourf_{}_{}.png'.format(
+            station, instrument_types, var_abbrev, colourmap))
 
-    plot_2d(df_in, variable, units, station, colourmap,
+    plot_3d(df_in, variable, units, station, instrument_types, colourmap,
             contour_fig_name, plot_contourf)  # , y_lim)
+
+# # Plot plasma temperature only
+# key = 'Temperature'
+# variable = key
+# units = variable_dict[key]['units']
+# colourmap = variable_dict[key]['cmap']
+# var_abbrev = variable_dict[key]['abbrev']
+# stations = ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']
+# for station in stations:
+#     f = os.path.join(
+#         input_dir,
+#         '{}_ctd_data_binned_depth_dupl.csv'.format(station))
+#     df_in = pd.read_csv(f)
+#     contour_fig_name = os.path.join(
+#         output_dir,
+#         '{}_ctd_contourf_{}_{}.png'.format(
+#             station, var_abbrev, colourmap))
+#
+#     if station == 'LBP3':
+#         y_lim = 200
+#     else:
+#         y_lim = None
+#     plot_2d(df_in, variable, units, station, colourmap,
+#             contour_fig_name, plot_contourf, depth_lim=y_lim)
 
 # ----------------------Plot pcolormesh data----------------
 # To compare against data gaps in contourf data
@@ -504,12 +593,13 @@ for key in variable_dict.keys():
     colourmap = variable_dict[key]['cmap']
     var_abbrev = variable_dict[key]['abbrev']
 
-    contour_fig_name = 'C:\\Users\\HourstonH\\Documents\\' \
-                       'ctd_visualization\\png\\' \
-                       '{}_ctd_pcolormesh_{}.png'.format(station, var_abbrev)
+    cmesh_fig_name = os.path.join(
+        output_dir,
+        '{}_{}_pcolormesh_{}.png'.format(station, instrument_types,
+                                         var_abbrev))
 
-    plot_2d(df_in, variable, units, station, colourmap,
-            contour_fig_name, plot_pcolormesh)
+    plot_3d(df_in, variable, units, station, instrument_types, colourmap,
+            cmesh_fig_name, plot_pcolormesh)
 
 # ----------------------Plot anomalies-----------------------
 
@@ -524,38 +614,39 @@ for key in variable_dict.keys():
     colourmap = variable_dict[key]['cmap']
     var_abbrev = variable_dict[key]['abbrev']
 
-    anom_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-                    'png\\{}_ctd_anomalies_{}_v4.png'.format(
-                        station, var_abbrev)
+    anom_fig_name = os.path.join(
+        output_dir, '{}_{}_anomalies_{}.png'.format(
+            station, instrument_types, var_abbrev))
 
-    plot_anomalies(df_in, variable, units, station, anom_fig_name)
+    plot_anomalies_select(df_in, variable, units, station,
+                          instrument_types, anom_fig_name)
 
 
-# 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
-stations = ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']
-for station in stations:
-    f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
-        '{}_ctd_data_binned_depth_dupl.csv'.format(station)
-    df_in = pd.read_csv(f)
-    for key in variable_dict.keys():
-        variable = key
-        units = variable_dict[key]['units']
-        colourmap = variable_dict[key]['cmap']
-        var_abbrev = variable_dict[key]['abbrev']
-
-        anom_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-                        'png\\{}_ctd_anomalies_{}_v4.png'.format(
-                            station, var_abbrev)
-
-        plot_anomalies(df_in, variable, units, station, anom_fig_name)
+# # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+# stations = ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']
+# for station in stations:
+#     f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
+#         '{}_ctd_data_binned_depth_dupl.csv'.format(station)
+#     df_in = pd.read_csv(f)
+#     for key in variable_dict.keys():
+#         variable = key
+#         units = variable_dict[key]['units']
+#         colourmap = variable_dict[key]['cmap']
+#         var_abbrev = variable_dict[key]['abbrev']
+#
+#         anom_fig_name = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+#                         'png\\{}_ctd_anomalies_{}_v4.png'.format(
+#                             station, var_abbrev)
+#
+#         plot_anomalies_select(df_in, variable, units, station, anom_fig_name)
 
 # ---------------------------scatter padded data--------------------------
 
-df_in = pd.read_csv(f)
-
-figname = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-              'png_noQC\\{}_ctd_qc_binned_padded_scatter.png'.format(station)
-
-variable = 'Temperature'
-units = variable_dict[variable]['units']
-scatter_padded_data(df_in, figname, variable, units)
+# df_in = pd.read_csv(f)
+#
+# figname = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+#           'png_noQC\\{}_ctd_qc_binned_padded_scatter.png'.format(station)
+#
+# variable = 'Temperature'
+# units = variable_dict[variable]['units']
+# scatter_padded_data(df_in, figname, variable, units)
