@@ -1,7 +1,7 @@
-### Note: In progress
-
 # ios_ctd_visualization
 Visualization of netCDF CTD data collected by the Institute of Ocean Sciences. Support for netCDF BOT (bottle) and CHE (chemistry) data added 2022-09-02.
+
+Author: Hana Hourston (@hhourston)
 
 # Requirements
 * Python >= 3.7
@@ -13,7 +13,7 @@ Visualization of netCDF CTD data collected by the Institute of Ocean Sciences. S
    2b. If CHE and BOT data are included, check for CHE and BOT profiles from the same time and location as CTD profiles. Keep only the profile with the higher depth resolution (i.e., the CTD profile) 
 3. Data binning to the nearest whole-number depth in meters
 4. Flagging of binned depth duplicates in profiles
-5. Plotting: Annual sampling frequency, monthly sampling frequency, filled contours, anomalies
+5. Plotting: Annual sampling frequency, monthly sampling frequency, filled contours, anomalies at select depths
 
 # Plot oxygen data on density surfaces
 6. Compute the density at each observed level in the data using TEOS-10
