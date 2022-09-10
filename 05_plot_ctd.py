@@ -221,24 +221,25 @@ def scatter_padded_data(df, png_name, var_name, var_unit, depth_lim=None):
     return
 
 
-def plot_contourf(ax, time_reduced, depth_reduced, var_arr, cmap):
-    return ax.contourf(time_reduced, depth_reduced, var_arr, cmap=cmap)
+def plot_contourf(ax, time_reduced, depth_reduced, var_arr, cmap, levels):
+    return ax.contourf(time_reduced, depth_reduced, var_arr, cmap=cmap,
+                       levels=levels)
 
 
-def plot_pcolormesh(ax, time_reduced, depth_reduced, var_arr, cmap):
+def plot_pcolormesh(ax, time_reduced, depth_reduced, var_arr, cmap, levels):
     return ax.pcolormesh(time_reduced, depth_reduced, var_arr, cmap=cmap,
                          shading='auto')
 
 
 def plot_3d(df, var_name, var_unit, stn, instruments, cmap, png_name,
-            plot_fn, plot_anom=False, depth_lim=None):
+            plot_fn, plot_anom=False, depth_lim=None, levels=None):
     # plot_fn: either plot_contourf() or plot_pcolormesh()
 
     # Column name of the variable in the dataframe
     var_col_name = '{} [{}]'.format(var_name, var_unit)
-    anom_col_name = '{} anomaly [{}]'.format(var_name, var_unit)
 
     if plot_anom:
+        anom_col_name = '{} anomaly [{}]'.format(var_name, var_unit)
         # Anomalies must be computed at each binned depth
         df[anom_col_name] = compute_anomalies_all_depths(
             data_all=df.loc[:, var_col_name], time=df.loc[:, 'Time'],
@@ -264,10 +265,28 @@ def plot_3d(df, var_name, var_unit, stn, instruments, cmap, png_name,
     # f1 = ax.pcolormesh(time_reduced, depth_reduced, var_arr.T,
     #                    cmap='hsv', shading='auto')
 
-    f1 = plot_fn(ax, time_reduced, depth_reduced, var_arr.T, cmap=cmap)
+    f1 = plot_fn(ax, time_reduced, depth_reduced, var_arr.T, cmap=cmap,
+                 levels=levels)
 
     # Add the color bar
-    cbar = fig.colorbar(f1)
+    # Set the colour bar ticks to be 2 units apart for temperature
+    if var_col_name == 'Temperature [C]':
+        cbar_ticks = np.arange(
+            np.round(np.nanmin(var_arr), 1), np.nanmax(var_arr) + 1, 2)
+    elif var_col_name in ['Salinity [PSS-78]', 'Oxygen [mL/L]']:
+        # Arbitrary thresholds
+        if np.nanmax(var_arr) - np.nanmin(var_arr) > 22:
+            increment = 4
+        elif np.nanmax(var_arr) - np.nanmin(var_arr) > 10:
+            increment = 2
+        else:
+            increment = 1
+        cbar_ticks = np.arange(
+            np.round(np.nanmin(var_arr), 1), np.nanmax(var_arr) + 1,
+            increment)
+    else:
+        cbar_ticks = None
+    cbar = fig.colorbar(f1, ticks=cbar_ticks)
     cbar.set_label(var_col_name)
 
     # Adjust the depth scale if specified
@@ -481,36 +500,39 @@ def plot_anomalies_select(df, var_name, var_unit, stn, instruments,
 
 # -----------------------------------------------------------
 # Make dict to make iteration easier
-# variable_dict = {'Temperature':
-#                  {'units': 'C', 'abbrev': 'T', 'cmap': 'plasma'},  # Reds
-#                  'Salinity':
-#                  {'units': 'PSS-78', 'abbrev': 'S', 'cmap': 'Blues'},
-#                  'Oxygen':
-#                  {'units': 'mL/L', 'abbrev': 'O', 'cmap': 'jet'}}
 variable_dict = {'Temperature':
                  {'units': 'C', 'abbrev': 'T', 'cmap': 'plasma'},  # Reds
                  'Salinity':
                  {'units': 'PSS-78', 'abbrev': 'S', 'cmap': 'Blues'},
                  'Oxygen':
-                 {'units': 'umol/kg', 'abbrev': 'O', 'cmap': 'jet'}}
+                 {'units': 'mL/L', 'abbrev': 'O', 'cmap': 'jet'}}
+# variable_dict = {'Temperature':
+#                  {'units': 'C', 'abbrev': 'T', 'cmap': 'plasma'},  # Reds
+#                  'Salinity':
+#                  {'units': 'PSS-78', 'abbrev': 'S', 'cmap': 'Blues'},
+#                  'Oxygen':
+#                  {'units': 'umol/kg', 'abbrev': 'O', 'cmap': 'jet'}}
 
+# SSI
 # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
-# station = '42'
-# instrument_types = 'CTD'
-# input_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\'
-# output_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\png\\'
-# f = os.path.join(input_dir,
-#                  '{}_ctd_data_binned_depth_dupl.csv'.format(station))
+station = 'P1'
+instrument_types = 'CTD'
+input_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\'
+output_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+             'png\\0075_latlon\\'
+f = os.path.join(input_dir,
+                 '{}_ctd_data_binned_depth_dupl.csv'.format(station))
 
-# P4 P26
-station = 'P4'
-instrument_types = 'CTD_BOT_CHE'
-input_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-            'line_P_data_products\\csv\\02b_inexact_duplicate_check\\'
-output_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-             'line_P_data_products\\csv\\05_plot_diagnostic\\'
-f = os.path.join(input_dir, '{}_{}_data.csv'.format(
-    station, instrument_types))
+# # LINE P
+# # P4 P26
+# station = 'P26'
+# instrument_types = 'CTD_BOT_CHE_OSD'
+# input_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#             'line_P_data_products\\csv\\02b_inexact_duplicate_check\\'
+# output_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'line_P_data_products\\csv\\05_plot_diagnostic\\'
+# f = os.path.join(input_dir, '{}_{}_data.csv'.format(
+#     station, instrument_types))
 
 # ----------------------Plot counts per year-----------------
 hist_fig_name = os.path.join(
@@ -543,6 +565,8 @@ plot_monthly_samp_freq(df_in, station, instrument_types, mth_freq_fig_name)
 
 df_in = pd.read_csv(f)
 
+contour_levels = 100  # 8 is standard, 100 fakes continuity
+
 for key in variable_dict.keys():
     print(key)
     variable = key
@@ -551,11 +575,11 @@ for key in variable_dict.keys():
     var_abbrev = variable_dict[key]['abbrev']
 
     contour_fig_name = os.path.join(
-        output_dir, '{}_{}_contourf_{}_{}.png'.format(
-            station, instrument_types, var_abbrev, colourmap))
+        output_dir, '{}_{}_contourf_{}_{}_L{}_ticks.png'.format(
+            station, instrument_types, var_abbrev, colourmap, contour_levels))
 
     plot_3d(df_in, variable, units, station, instrument_types, colourmap,
-            contour_fig_name, plot_contourf)  # , y_lim)
+            contour_fig_name, plot_contourf, levels=contour_levels)  # , y_lim)
 
 # # Plot plasma temperature only
 # key = 'Temperature'
