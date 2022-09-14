@@ -12,18 +12,18 @@ Author: Hana Hourston (@hhourston)
    2. Include temperature, salinity and oxygen originator (NODC) quality flags
 2. Apply the originator flags
    1. For NODC, a flag value of "0" indicates data that passed all quality control checks, so data having a non-zero flag are discarded. NODC flags are listed below. 
-3. Latitude, longitude, depth, range, and gradient checks \
-   2b. If CHE and BOT data are included, check for CHE and BOT profiles from the same time and location as CTD profiles. Keep only the profile with the higher depth resolution (i.e., the CTD profile) 
-4. Data binning to the nearest whole-number depth in meters
-5. Flagging of binned depth duplicates in profiles
-6. Plotting: Annual sampling frequency, monthly sampling frequency, filled contours, anomalies at select depths
+3. Latitude, longitude, depth, range, and gradient checks
+4. If other data types are included (e.g., CHE and BOT), check for more than one profile from the same time and location. Keep only the profile with the higher depth resolution (i.e., the CTD profile) 
+5. Data binning to the nearest whole-number depth in meters
+6. Flagging of binned depth duplicates in profiles
+7. Plotting: Annual sampling frequency, monthly sampling frequency, filled contours, anomalies at select depths
 
 # Plot oxygen data on density surfaces
-7. Compute the potential density anomaly at each observed level in the data using TEOS-10. Use a reference pressure of 0 dbar
-8. Linearly interpolate data from step 2b onto the potential density anomaly surfaces 26.9, 26.7 and 26.5 
-9. Compute annual averages at each potential density anomaly surface (one single average for each year)
-10. Make scatter plots of oxygen on the density surfaces defined in step 7 (as in Crawford and Pena, 2021)
-      1. Include a best-fit line through the set of points for each potential density anomaly surface
+8. Compute the potential density anomaly at each observed level in the data using TEOS-10. Use a reference pressure of 0 dbar
+9. Linearly interpolate data from step 2b onto the potential density anomaly surfaces 26.9, 26.7 and 26.5 
+10. Compute annual averages at each potential density anomaly surface (one single average for each year)
+11. Make scatter plots of the annually-averaged oxygen on the density surfaces defined in step 8 (as in Crawford and Pena, 2021)
+      1. Include a best-fit line through the set of annually-averaged oxygen points for each potential density anomaly surface
 
 The first step involving the assembly of netCDF CTD data into a CSV table also includes unit conversions as needed. If not already the case, salinity is converted into PSS-78 and oxygen is converted into $\mu mol/kg$. Temperature and fluorescence units are kept as degrees Celsius and $mg/m^3$, respectively.
 \
