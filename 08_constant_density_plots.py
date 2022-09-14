@@ -4,6 +4,7 @@ import gsw
 import os
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+import convert
 
 # Charles Line P data product request
 
@@ -58,7 +59,7 @@ def calculate_pot_dens_anom(
 
 
 def interp_oxy_to_density_surfaces(df_file_name, out_df_name,
-                                   select_densities):
+                                   select_densities, oxy_unit):
     # Interpolate oxygen to constant density surfaces
     # Select density surfaces defined in densities parameter
     # Returns oxygen interpolated to select density surfaces
@@ -68,6 +69,20 @@ def interp_oxy_to_density_surfaces(df_file_name, out_df_name,
     # to using this function.
     # Do interpolation for each profile
     in_df = pd.read_csv(df_file_name)
+
+    # Check if oxy unit is in umol/kg
+    if oxy_unit == 'mL/L':
+        pressure = gsw.p_from_z(
+            -in_df.loc[:, 'Depth [m]'].to_numpy(float),
+            in_df.loc[:, 'Latitude [deg N]'].to_numpy(float))
+        in_df['Oxygen [umol/kg]'] = convert.ml_l_to_umol_kg(
+            in_df.loc[:, 'Oxygen [mL/L]'].to_numpy(float),
+            in_df.loc[:, 'Longitude [deg E]'].to_numpy(float),
+            in_df.loc[:, 'Latitude [deg N]'].to_numpy(float),
+            in_df.loc[:, 'Temperature [C]'].to_numpy(float),
+            in_df.loc[:, 'Salinity [PSS-78]'].to_numpy(float),
+            pressure, df_file_name)[0]
+
     profile_start_idx = np.unique(in_df.loc[:, 'Profile number'],
                                   return_index=True)[1]
 
@@ -85,8 +100,14 @@ def interp_oxy_to_density_surfaces(df_file_name, out_df_name,
     for i in range(len(profile_start_idx)):
         st = profile_start_idx[i]
         en = profile_end_idx[i]
-        if all(np.isnan(in_df.loc[st:en, 'Oxygen [umol/kg]'].to_numpy(float))):
+        # print(st, en)
+        if all(np.isnan(in_df.loc[st:en, 'Oxygen [umol/kg]'].to_numpy())):
             # Skip the profile
+            continue
+        elif st == en:
+            print('Warning: profile number' +
+                  str(in_df.loc[st, 'Profile number']) +
+                  'has length 1; skipping')
             continue
         else:
             # If x_new is outside the interpolation range, use fill_value
@@ -163,12 +184,23 @@ def annual_avg_on_density_surfaces(df_file: str, output_file_name: str):
     return
 
 
-def plot_avg_oxy_on_density_surfaces(df_file, png_name, station):
+def plot_avg_oxy_on_density_surfaces(df_file, png_name, station,
+                                     include_fit=False, fit_deg=None):
+    """
+    Plot annually averaged oxygen on constant potential density anomaly
+    surfaces.
+    :param df_file: file name of csv containing the data
+    :param png_name: file name to be assigned to png of plot
+    :param station: name of station
+    :param include_fit: include best-fit line in plot, default False
+    :param fit_deg: best-fit degrees of freedom, default 1 (straight line)
+    :return:
+    """
     df = pd.read_csv(df_file)
 
     fig, ax = plt.subplots()
     # Add grid lines
-    plt.grid()
+    plt.grid(color='lightgrey')
 
     for sigma_theta, c in zip(
             np.unique(df.loc[:, 'Potential density anomaly level [kg/m]'])[::-1],
@@ -177,21 +209,51 @@ def plot_avg_oxy_on_density_surfaces(df_file, png_name, station):
             df.loc[:, 'Potential density anomaly level [kg/m]'] == sigma_theta
         )[0]
         # Scatter the points
+        year_data = df.loc[msk, 'Year'].to_numpy(dtype='int32')
+        oxy_data = df.loc[msk, 'Average interpolated oxygen [umol/kg]'
+                          ].to_numpy(dtype='float')
         ax.scatter(
-            df.loc[msk, 'Year'].to_numpy(dtype='int32'),
-            df.loc[msk, 'Average interpolated oxygen [umol/kg]'].to_numpy(dtype='float'),
+            year_data,
+            oxy_data,
             label='{} {}'.format(station, np.round(sigma_theta, 1)),
             marker='o',
             s=20,
             edgecolor='k',
             c=c
         )
-        # TODO Add best-fit line to scatter points as in for Burke Inlet
-        # Convert time to seconds first
-        # time_ts = time_pd
-        # z = np.polyfit()
+        # Add best-fit line
+        if include_fit:
+            x_values_sorted = np.array(sorted(year_data))
+            y_values_sorted = np.array([i for _, i in
+                                        sorted(zip(year_data, oxy_data))])
+            # Remove any nans otherwise polynomial crashes
+            x_values_sorted = x_values_sorted[~np.isnan(y_values_sorted)]
+            y_values_sorted = y_values_sorted[~np.isnan(y_values_sorted)]
+            # Update polynomial module access from legacy access
+            poly = np.polynomial.Polynomial.fit(
+                x_values_sorted, y_values_sorted, deg=fit_deg)
+            # coeffs = poly.coef
+            # fit_eqn = np.polynomial.Polynomial(coeffs[::-1]) # must reverse order coeffs
+            # y_hat_sorted = fit_eqn(x_values_sorted)
+            # ax.plot(x_values_sorted, y_hat_sorted, c=c)
+            x_linspace, y_hat_linspace = poly.linspace(n=100)
+            ax.plot(x_linspace, y_hat_linspace, c=c)
+            # numpy.linalg.LinAlgError: SVD did not converge in Linear Least Squares for OSP
+
     ybot, ytop = plt.ylim()
     ax.set_ylim(top=ytop + 30)  # Give enough space for legend
+    # Major and minor ticks sticking inside and outside the axes
+    # Set one minor tick between each major tick
+    ax.minorticks_on()
+    major_xticks = ax.get_xticks(minor=False)  # in data coords
+    minor_xticks = major_xticks[:-1] + (major_xticks[1] - major_xticks[0])/2
+    ax.set_xticks(ticks=minor_xticks, minor=True)
+    major_yticks = ax.get_yticks(minor=False)  # in data coords
+    minor_yticks = major_yticks[:-1] + (major_yticks[1] - major_yticks[0]) / 2
+    ax.set_yticks(ticks=minor_yticks, minor=True)
+    plt.tick_params(which='major', direction='inout')
+    plt.tick_params(which='minor', direction='in')
+    # Set labels
     ax.set_ylabel('Oxygen [umol/kg]')
     ax.set_title('Annual average oxygen concentration at {}'.format(station))
     # Add legend with specific properties
@@ -209,19 +271,28 @@ def plot_avg_oxy_on_density_surfaces(df_file, png_name, station):
 # Interpolate oxygen data onto constant density surfaces
 # Selected density surfaces: 1026.5 to 1026.9 kg/m^3
 # Make a plot with all three oxygen vs density surface on it
-# for each station: P4 and P26
-stn = 'P26'
-# station_name = stn
-station_name = 'OSP'
+# for each station: P4 and P26, LB08
+stn = 'P4'
+station_name = stn
+# station_name = 'OSP'
+parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+             'line_P_data_products\\csv\\'
+# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'bottom_oxygen\\'
 
-in_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-         'line_P_data_products\\csv\\02b_inexact_duplicate_check\\'
+# in_dir = '04_inexact_duplicate_check\\'
+# in_file = os.path.join(
+#     parent_dir, in_dir, '{}_data.csv'.format(stn))
+in_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+         'csv\\'
 in_file = os.path.join(
-    in_dir, '{}_CTD_BOT_CHE_data.csv'.format(stn))
+    in_dir, 'LB08_ctd_data_qc.csv')
 
-density_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-          'line_P_data_products\\csv\\06_potential_density_anomalies\\'
-density_file = os.path.join(density_dir, os.path.basename(in_file))
+# ----------------------------------------------------------
+
+density_dir = '08_potential_density_anomalies\\'
+density_file = os.path.join(parent_dir, density_dir,
+                            os.path.basename(in_file))
 
 df_in = pd.read_csv(in_file)
 
@@ -291,32 +362,38 @@ potential_densities = np.array([26.5, 26.7, 26.9])
 # # --------------
 
 # Perform the interpolation on each profile
-interp_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-             'line_P_data_products\\csv\\' \
-             '07_interpolate_to_pot_dens_anom_surfaces\\'
-interp_file = os.path.join(interp_dir, os.path.basename(in_file))
+interp_dir = '09_interpolate_to_pot_dens_anom_surfaces\\'
+interp_file = os.path.join(parent_dir, interp_dir,
+                           os.path.basename(in_file))
 
 interp_oxy_to_density_surfaces(density_file, interp_file,
-                               potential_densities)
+                               potential_densities, 'mL/L')
 
 # ------------------------------------------------------------------
 # Annual averaging on each density surface
-average_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-              'line_P_data_products\\csv\\' \
-              '08_annual_avg_on_dens_surfaces\\'
-average_file = os.path.join(average_dir, os.path.basename(in_file))
+average_dir = '10_annual_avg_on_dens_surfaces\\'
+average_file = os.path.join(parent_dir, average_dir,
+                            os.path.basename(in_file))
 annual_avg_on_density_surfaces(interp_file, average_file)
 
 # ------------------------------------------------------------------
 # Plot the oxygen on constant density surfaces
 
-stn = 'P26'
-# station_name = stn
-station_name = 'OSP'
+stn = 'P4'
+station_name = stn
+# station_name = 'OSP'
+# print(stn, station_name)
+# data_types = 'CTD_BOT_CHE_OSD'
+best_fit_degrees = 2  # One for P26 and 2 for P4
 
-average_file = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-               'line_P_data_products\\csv\\' \
-               '08_annual_avg_on_dens_surfaces\\P26_CTD_BOT_CHE_data.csv'
-plot_name = average_file.replace('.csv', '_oxy_vs_pot_dens_anom.png')
-plot_avg_oxy_on_density_surfaces(average_file, plot_name, station_name)
+average_file = os.path.join(
+    parent_dir,
+    '10_annual_avg_on_dens_surfaces\\{}_data.csv'.format(stn))
+plot_name = average_file.replace(
+    '.csv',
+    '_oxy_vs_pot_dens_anom_{}degfit_v2.png'.format(best_fit_degrees))
+
+# Why is best fit truncated early in Crawford and Pena (2020)? How to do?
+plot_avg_oxy_on_density_surfaces(average_file, plot_name,
+                                 station_name, True, best_fit_degrees)  # , True)
 
