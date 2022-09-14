@@ -146,6 +146,33 @@ def convert_percent_to_mL_L(
         return None
 
 
+def ml_l_to_umol_kg(oxy_ml_l, longitude, latitude, temperature_C,
+                    salinity_SP, pressure_dbar, filename):
+    # Convert oxygen mL/L units to umol/kg units
+    oxygen_umol_per_ml = 44.661
+    metre_cube_per_litre = 0.001
+    density, assumed_density = calculate_density(
+        len(oxy_ml_l),
+        temperature_C,
+        salinity_SP,
+        pressure_dbar,
+        longitude,
+        latitude,
+        filename,
+    )
+    return (
+        np.fromiter(
+            (
+                o * oxygen_umol_per_ml / (rho * metre_cube_per_litre)
+                for o, rho in zip(oxy_ml_l, density)
+            ),
+            dtype=float,
+            count=len(oxy_ml_l),
+        ),
+        assumed_density
+    )
+
+
 def convert_salinity(salinity, units, filename):
     """Converts salinity into PSU
 
