@@ -25,12 +25,11 @@ Author: Hana Hourston (@hhourston)
 11. Make scatter plots of the annually-averaged oxygen on the density surfaces defined in step 8 (as in Crawford and Pena, 2021)
       1. Include a best-fit line through the set of annually-averaged oxygen points for each potential density anomaly surface
 
-The first step involving the assembly of netCDF CTD data into a CSV table also includes unit conversions as needed. If not already the case, salinity is converted into PSS-78 and oxygen is converted into $\mu mol/kg$. Temperature and fluorescence units are kept as degrees Celsius and $mg/m^3$, respectively.
+The first step involving the assembly of netCDF CTD data into a CSV table also includes unit conversions as needed. If not already the case, salinity is converted into PSS-78 and oxygen is converted into $\mu mol/kg$. Temperature units are kept as degrees Celsius.
 \
 The latitude and longitude of each profile are checked to ensure that all are within +/- 0.075 decimal degrees of the median station coordinates. The median is used instead of the mean here because the former is robust to outliers.  
 \
-The depth, range, and gradient checks are taken from the NCEI WOA18.  
-\
+The depth, range, and gradient checks are taken from the NCEI WOA18.
 
 # References
 Crawford, B. and Pena, A. (2021). Oxygen in subsurface waters on the B.C. Shelf. In *State of the Physical, Biological and Selected Fishery Resources of Pacific Canadian Marine Ecosystems in 2020*, edited by J. L. Boldt, A. Javorski and P. C. Chandler. https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/4098297x.pdf
