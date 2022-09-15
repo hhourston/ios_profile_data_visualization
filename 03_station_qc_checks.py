@@ -300,16 +300,32 @@ def main(station, inFilePath, outFilePath):
     # -----Apply masks-----
 
     # Print summary statistics
-    print('Number of input observations:', len(ctd_df))
-    print('Number of obs passing lat/lon check:', sum(latlon_mask))
-    print('Number of obs passing depth limits check:', sum(depth_lim_mask))
-    print('Number of obs passing depth inversion/copy check:', sum(depth_inv_mask))
-    print('Number of T obs passing range check:', sum(T_range_mask))
-    print('Number of S obs passing range check:', sum(S_range_mask))
-    print('Number of O obs passing range check:', sum(O_range_mask))
-    print('Number of T obs passing gradient check:', sum(T_gradient_mask))
-    print('Number of S obs passing gradient check:', sum(S_gradient_mask))
-    print('Number of O obs passing gradient check:', sum(O_gradient_mask))
+    summary_statistics_file = os.path.join(
+        os.path.dirname(outFilePath),
+        '{}_QC_summary_statistics.txt'.format(station))
+    with open(summary_statistics_file, 'w') as txtfile:
+        txtfile.write('Source file: {}\n'.format(inFilePath))
+        txtfile.write('Output file: {}\n'.format(outFilePath))
+        txtfile.write(
+            'Number of input observations: {}\n'.format(len(ctd_df)))
+        txtfile.write(
+            'Number of obs passing lat/lon check: {}\n'.format(sum(latlon_mask)))
+        txtfile.write(
+            'Number of obs passing depth limits check: {}\n'.format(sum(depth_lim_mask)))
+        txtfile.write(
+            'Number of obs passing depth inversion/copy check: {}\n'.format(sum(depth_inv_mask)))
+        txtfile.write(
+            'Number of T obs passing range check: {}\n'.format(sum(T_range_mask)))
+        txtfile.write(
+            'Number of S obs passing range check: {}\n'.format(sum(S_range_mask)))
+        txtfile.write(
+            'Number of O obs passing range check: {}\n'.format(sum(O_range_mask)))
+        txtfile.write(
+            'Number of T obs passing gradient check: {}\n'.format(sum(T_gradient_mask)))
+        txtfile.write(
+            'Number of S obs passing gradient check: {}\n'.format(sum(S_gradient_mask)))
+        txtfile.write(
+            'Number of O obs passing gradient check: {}'.format(sum(O_gradient_mask)))
 
     # # Combine masks with logical "and"
     # merged_mask = latlon_mask & depth_lim_mask & depth_inv_mask
@@ -333,17 +349,17 @@ def main(station, inFilePath, outFilePath):
 
 # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
 # P4 P26
-sampling_station = 'P4'
+sampling_station = 'P26'
 # data_types = 'ctd'
 # data_types = 'CTD_BOT_CHE_OSD'
+parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+             'line_P_data_products\\csv\\has_osd_ctd_flags\\'
 
-data_file_path = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-                 'line_P_data_products\\csv\\02_merge\\' \
-                 '{}_data.csv'.format(sampling_station)
-output_file_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-                  'line_P_data_products\\csv\\03_QC\\'
-output_file_path = os.path.join(output_file_dir,
-                                os.path.basename(data_file_path))
+data_file_path = os.path.join(
+    parent_dir, '02_merge\\{}_data.csv'.format(sampling_station))
+
+output_file_path = os.path.join(
+    parent_dir, '03_QC', os.path.basename(data_file_path))
 
 main(sampling_station, data_file_path, output_file_path)
 
