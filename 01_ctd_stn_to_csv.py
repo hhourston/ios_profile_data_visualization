@@ -202,7 +202,7 @@ for s in ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']:
 
 # NODC data
 # 'P26' P4
-stn = 'P26'
+stn = 'P4'
 # data_type = 'OSD'
 
 # nodc_file = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
@@ -213,10 +213,28 @@ stn = 'P26'
 #             'line_P_data_products\\{}\\wodselect\\' \
 #             'ocldb1662746296.725_{}.nc'.format(stn, data_type)
 
-nodc_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-           'line_P_data_products\\{}\\wodselect\\'.format(stn)
-nodc_flist = glob.glob(nodc_dir + '*.nc', recursive=False)
-nodc_flist.sort()
+p26_parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+                 'line_P_data_products\\{}\\wodselect\\'.format(stn)
+p26_files = [
+    os.path.join(p26_parent_dir, 'ocldb1661989089.32104_OSD.nc'),
+    os.path.join(p26_parent_dir, 'already_in_ios_archive',
+                 'ocldb1663010426.31871_CTD.nc')]
+
+p4_parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+                'line_P_data_products\\{}\\wodselect\\'.format(stn)
+p4_files = [
+    os.path.join(p4_parent_dir, 'ocldb1662746296.725_OSD.nc'),
+    os.path.join(p4_parent_dir, 'already_in_ios_archive',
+                 'ocldb1662746296.725_CTD.nc')]
+
+# nodc_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#            'line_P_data_products\\{}\\wodselect\\'.format(stn)
+# nodc_flist = glob.glob(nodc_dir + '*.nc', recursive=False)
+# nodc_flist.sort()
+if stn == 'P26':
+    nodc_flist = p26_files  # p4_files  # p26_files
+elif stn == 'P4':
+    nodc_flist = p4_files
 
 dtype_list = []
 
@@ -228,6 +246,7 @@ df_nodc = pd.DataFrame(
              'Salinity profile flag', 'Oxygen [umol/kg]',
              'Oxygen profile flag'])
 
+profile_number = 0
 for f in nodc_flist:
     print(os.path.basename(f))
     file_dtype = f[-6:-3]
@@ -247,7 +266,7 @@ for f in nodc_flist:
         en = nodc_end_idx[i]
         prof_len = en - st
         dct_add = {
-            'Profile number': np.repeat(i, prof_len),
+            'Profile number': np.repeat(profile_number, prof_len),
             'Latitude [deg N]': np.repeat(nodc_ds.lat.data[i], prof_len),
             'Longitude [deg E]': np.repeat(nodc_ds.lon.data[i], prof_len),
             'Time': np.repeat(nodc_ds.time.data[i], prof_len),
@@ -264,9 +283,12 @@ for f in nodc_flist:
         }
         df_nodc = pd.concat((df_nodc, pd.DataFrame(dct_add)))
 
+        profile_number += 1
+
 # Save the df
 output_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-             'line_P_data_products\\csv\\01_convert\\'
+             'line_P_data_products\\csv\\has_osd_ctd_flags\\' \
+             '01_convert\\'
 output_file_name = stn + '_NODC'
 
 for dtype in dtype_list:
