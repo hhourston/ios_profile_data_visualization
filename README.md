@@ -23,7 +23,7 @@ Author: Hana Hourston (@hhourston)
 9. Linearly interpolate oxygen observations sampled with hydro bottles at discrete depths to 1m vertical resolution. Do not interpolate if any of oxygen, potential temperature or absolute salinity are spaced more than 0.2 potential density anomaly units apart.
 10. Make the selection of oxygen from the 1m resolution profiles only if the computed potential density anomaly is within 0.005 units of the specified density anomaly (i.e., bin oxygen data to the select density anomalies)
 11. Compute annual averages at each potential density anomaly surface (one single average for each year)
-12. Make scatter plots of the annually-averaged oxygen on the density surfaces defined in step 8 (as in Crawford and Pena, 2021)
+12. Make scatter plots of the annually-averaged oxygen on the select potential density surfaces (as in Crawford and Pena, 2021)
       1. Include a best-fit line through the set of annually-averaged oxygen points for each potential density anomaly surface
 
 All times are in UTC. 
@@ -31,9 +31,13 @@ The first step involving the assembly of netCDF CTD data into a CSV table also i
 \
 The latitude and longitude of each profile are checked to ensure that all are within +/- 0.075 decimal degrees of the median station coordinates. The median is used instead of the mean here because the former is robust to outliers.  
 \
-The depth, range, and gradient checks are taken from the NCEI WOA18.
+The depth, range, and gradient checks are taken from the NCEI WOA18.  
+\
+The steps to plot oxygen data on select density surfaces are taken from Crawford and Peña (2016).
 
 # References
-Crawford, B. and Pena, A. (2021). Oxygen in subsurface waters on the B.C. Shelf. In *State of the Physical, Biological and Selected Fishery Resources of Pacific Canadian Marine Ecosystems in 2020*, edited by J. L. Boldt, A. Javorski and P. C. Chandler. https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/4098297x.pdf
+Crawford, B. and Peña, A. (2021). Oxygen in subsurface waters on the B.C. Shelf. In *State of the Physical, Biological and Selected Fishery Resources of Pacific Canadian Marine Ecosystems in 2020*, edited by J. L. Boldt, A. Javorski and P. C. Chandler. https://waves-vagues.dfo-mpo.gc.ca/library-bibliotheque/4098297x.pdf
+
+Crawford, W. R. and Peña, M. A. (2016). Decadal Trends in Oxygen Concentration in Subsurface Waters of the Northeast Pacific Ocean, Atmosphere-Ocean, 54:2, 171-192, DOI: 10.1080/07055900.2016.1158145
 
 Garcia H. E., K.W. Weathers, C.R. Paver, I. Smolyar, T.P. Boyer, R.A. Locarnini, M.M. Zweng, A.V. Mishonov, O.K. Baranova, D. Seidov, and J.R. Reagan (2019). World Ocean Atlas 2018, Volume 3: Dissolved Oxygen, Apparent Oxygen Utilization, and Dissolved Oxygen Saturation. A. Mishonov Technical Editor. *NOAA Atlas NESDIS 83*, 38pp.
