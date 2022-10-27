@@ -4,6 +4,7 @@ import numpy as np
 from gradient_check import vvd_gradient_check
 from tqdm import trange
 import os
+from haversine import haversine
 import matplotlib.pyplot as plt
 
 
@@ -169,7 +170,8 @@ def plot_after_coord_checks(station, inFilePath, outPNGpath):
     return
 
 
-def main(station, inFilePath, outFilePath):
+def main(station, inFilePath, outFilePath, coord_check='planar', station_coords=None):
+    # coord_check: 'planar' or 'haversine', must provide station_coords (lat, lon) for haversine
     ctd_df = pd.read_csv(inFilePath)
     oxygen_column = ctd_df.columns[
         ['Oxygen' in colname for colname in ctd_df.columns]][0]
@@ -191,16 +193,28 @@ def main(station, inFilePath, outFilePath):
         station, np.nanmin(ctd_df.loc[:, 'Longitude [deg E]']),
         np.nanmax(ctd_df.loc[:, 'Longitude [deg E]'])))
 
-    # Set maximum variation limit from median
-    # 2022-09-06 reduced from 0.1 to 0.075
-    limit = 0.075
-    latlon_mask = (ctd_df.loc[:, 'Latitude [deg N]'] > median_lat - limit) & \
-                  (ctd_df.loc[:, 'Latitude [deg N]'] < median_lat + limit) & \
-                  (ctd_df.loc[:, 'Longitude [deg E]'] > median_lon - limit) & \
-                  (ctd_df.loc[:, 'Longitude [deg E]'] < median_lon + limit)
+    if coord_check == 'planar':
+        # Set maximum variation limit from median
+        # 2022-09-06 reduced from 0.1 to 0.075
+        limit = 0.075 if station_coords is None else station_coords
+        latlon_mask = (ctd_df.loc[:, 'Latitude [deg N]'] > median_lat - limit) & \
+                      (ctd_df.loc[:, 'Latitude [deg N]'] < median_lat + limit) & \
+                      (ctd_df.loc[:, 'Longitude [deg E]'] > median_lon - limit) & \
+                      (ctd_df.loc[:, 'Longitude [deg E]'] < median_lon + limit)
 
-    # Apply the mask
-    ctd_df_out = ctd_df.loc[latlon_mask, :]
+        # Apply the mask
+        ctd_df_out = ctd_df.loc[latlon_mask, :]
+    elif coord_check == 'haversine':
+        km_to_decimal_degrees = 1/111
+        # The limit used in Cummins & Ross (2020)
+        limit = 24 * km_to_decimal_degrees
+        distances = np.array([haversine((lat_i, lon_i), station_coords)
+                              for lat_i, lon_i in zip(ctd_df.loc[:, 'Latitude [deg N]'],
+                                                      ctd_df.loc[:, 'Longitude [deg E]'])])
+        latlon_mask = distances <= limit
+        ctd_df_out = ctd_df.loc[latlon_mask, :]
+    else:
+        print(f'coord_check method {coord_check} is invalid')
 
     # Reset the index
     ctd_df_out.reset_index(drop=True, inplace=True)
@@ -232,15 +246,12 @@ def main(station, inFilePath, outFilePath):
 
     # Mask out values outside acceptable ranges for each variable
     # Use preset ranges from WOD
-    range_file_T = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
-                   'literature\\WOA docs\\wod18_users_manual_tables\\' \
-                   'wod18_ranges_TEMP_Coast_N_Pac.csv'
-    range_file_S = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
-                   'literature\\WOA docs\\wod18_users_manual_tables\\' \
-                   'wod18_ranges_PSAL_Coast_N_Pac.csv'
-    range_file_O = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
-                   'literature\\WOA docs\\wod18_users_manual_tables\\' \
-                   'wod18_ranges_DOXY_Coast_N_Pac.csv'
+    range_file_T = 'C:\\Users\\HourstonH\\Documents\\climatology\\' \
+                   'wod18_users_manual_tables\\wod18_ranges_TEMP_Coast_N_Pac.csv'
+    range_file_S = 'C:\\Users\\HourstonH\\Documents\\climatology\\' \
+                   'wod18_users_manual_tables\\wod18_ranges_PSAL_Coast_N_Pac.csv'
+    range_file_O = 'C:\\Users\\HourstonH\\Documents\\climatology\\' \
+                   'wod18_users_manual_tables\\wod18_ranges_DOXY_Coast_N_Pac.csv'
 
     range_T_df = pd.read_csv(range_file_T)
     range_S_df = pd.read_csv(range_file_S)
@@ -271,8 +282,8 @@ def main(station, inFilePath, outFilePath):
 
     # -----Gradient checks-----
 
-    gradient_file = 'C:\\Users\\HourstonH\\Documents\\NEP_climatology\\' \
-                    'literature\\WOA docs\\wod18_users_manual_tables\\' \
+    gradient_file = 'C:\\Users\\HourstonH\\Documents\\climatology\\' \
+                    'wod18_users_manual_tables\\' \
                     'wod18_max_gradient_inversion.csv'
 
     gradient_df = pd.read_csv(gradient_file, index_col='Variable')
@@ -347,13 +358,12 @@ def main(station, inFilePath, outFilePath):
     return
 
 
-# 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
-# P4 P26
-sampling_station = 'P26'
-# data_types = 'ctd'
-# data_types = 'CTD_BOT_CHE_OSD'
+# ------------------------------OSP upper ocean T---------------------------------
 parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-             'line_P_data_products\\csv\\has_osd_ctd_flags\\'
+             'our_warming_ocean\\osp_sst\\csv\\'
+
+sampling_station = 'P26'
+p26_coords = (50, -145)  # Cummins and Ross (2020)
 
 data_file_path = os.path.join(
     parent_dir, '02_merge\\{}_data.csv'.format(sampling_station))
@@ -361,7 +371,25 @@ data_file_path = os.path.join(
 output_file_path = os.path.join(
     parent_dir, '03_QC', os.path.basename(data_file_path))
 
-main(sampling_station, data_file_path, output_file_path)
+main(sampling_station, data_file_path, output_file_path,
+     coord_check='haversine', station_coords=p26_coords)
+
+# ---------------------------------SSI stations-----------------------------------
+# # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+# # P4 P26
+# sampling_station = 'P26'
+# # data_types = 'ctd'
+# # data_types = 'CTD_BOT_CHE_OSD'
+# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'line_P_data_products\\csv\\has_osd_ctd_flags\\'
+#
+# data_file_path = os.path.join(
+#     parent_dir, '02_merge\\{}_data.csv'.format(sampling_station))
+#
+# output_file_path = os.path.join(
+#     parent_dir, '03_QC', os.path.basename(data_file_path))
+#
+# main(sampling_station, data_file_path, output_file_path)
 
 # for s in ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']:
 #     data_file_path = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
