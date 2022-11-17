@@ -111,7 +111,7 @@ def get_fluorescence_var(ds):
     return
 
 
-def main(nc_list, out_file_name, oxy_unit):
+def main_ios(nc_list, out_file_name, oxy_unit):
     df_out = pd.DataFrame()
 
     for i, f in enumerate(nc_list):  # [139:140]
@@ -136,15 +136,20 @@ def main(nc_list, out_file_name, oxy_unit):
         sal_var = get_salinity_var(ncdata)
         oxy_var = get_oxygen_var(ncdata, temp_var, sal_var,
                                  os.path.basename(f), oxy_unit)
+        file_var = np.repeat(os.path.basename(f), nobs_in_cast)
+        cast_type_var = np.repeat(os.path.basename(f)[-6:-3].upper(),
+                                  nobs_in_cast)
 
         df_add = pd.DataFrame(
             np.array([profile_number, lat_array, lon_array, time_array,
-                      ncdata.depth.data, temp_var, sal_var, oxy_var],
+                      ncdata.depth.data, temp_var, sal_var, oxy_var, file_var,
+                      cast_type_var],
                      dtype='object'
                      ).transpose(),
             columns=['Profile number', 'Latitude [deg N]', 'Longitude [deg E]',
                      'Time', 'Depth [m]', 'Temperature [C]',
-                     'Salinity [PSS-78]', 'Oxygen [{}]'.format(oxy_unit)])
+                     'Salinity [PSS-78]', 'Oxygen [{}]'.format(oxy_unit), 'File',
+                     'Cast type'])
         # PSS-78 and PSU taken as equivalent
 
         df_out = pd.concat([df_out, df_add])
@@ -158,6 +163,68 @@ def main(nc_list, out_file_name, oxy_unit):
     return
 
 
+def main_nodc(nc_list, out_file_name):
+    dtype_list = []
+
+    # Initialize dataframe to hold data
+    df_nodc = pd.DataFrame(
+        columns=['Profile number', 'Latitude [deg N]', 'Longitude [deg E]',
+                 'Time', 'Depth [m]', 'Temperature [C]',
+                 'Temperature profile flag', 'Salinity [PSS-78]',
+                 'Salinity profile flag', 'Oxygen [umol/kg]',
+                 'Oxygen profile flag', 'File', 'Cast type'])
+
+    profile_number = 0
+    # Iterate through each nc file
+    for f in nc_list:
+        print(os.path.basename(f))
+        file_dtype = f[-6:-3]
+        print(file_dtype)
+        dtype_list.append(file_dtype)
+
+        nodc_ds = xr.open_dataset(f)
+
+        # Get profile start and end indices
+        nodc_start_idx = np.concatenate(
+            (np.array([0]), np.where(np.diff(nodc_ds.z.data) < 0)[0] + 1))
+
+        nodc_end_idx = np.concatenate(
+            (nodc_start_idx[1:], np.array([len(nodc_ds.z.data)])))
+
+        # Iterate through each cast
+        for i in range(len(nodc_start_idx)):
+            st = nodc_start_idx[i]
+            en = nodc_end_idx[i]
+            prof_len = en - st
+            dct_add = {
+                'Profile number': np.repeat(profile_number, prof_len),
+                'Latitude [deg N]': np.repeat(nodc_ds.lat.data[i], prof_len),
+                'Longitude [deg E]': np.repeat(nodc_ds.lon.data[i], prof_len),
+                'Time': np.repeat(nodc_ds.time.data[i], prof_len),
+                'Depth [m]': nodc_ds.z.data[st:en],
+                'Temperature [C]': nodc_ds.Temperature.data[st:en],
+                'Temperature profile flag': np.repeat(
+                    nodc_ds.Temperature_WODprofileflag.data[i], prof_len),
+                'Salinity [PSS-78]': nodc_ds.Salinity.data[st:en],
+                'Salinity profile flag': np.repeat(
+                    nodc_ds.Salinity_WODprofileflag.data[i], prof_len),
+                'Oxygen [umol/kg]': nodc_ds.Oxygen.data[st:en],
+                'Oxygen profile flag': np.repeat(
+                    nodc_ds.Oxygen_WODprofileflag.data[i], prof_len),
+                'File': np.repeat(os.path.basename(f), prof_len),
+                'Cast type': np.repeat(file_dtype, prof_len)
+            }
+            df_nodc = pd.concat((df_nodc, pd.DataFrame(dct_add)))
+
+            profile_number += 1
+
+    # Save the df
+    df_nodc.to_csv(out_file_name, index=False)
+
+    return
+
+
+"""
 # ----------------------------------------------------------------------------
 # Ask James Hannah about searching files quickly by station on osd data archive
 
@@ -196,8 +263,8 @@ for s in ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']:
     data_flist.sort()
     print(len(data_flist))
 
-    main(data_flist, output_fname, oxygen_unit)
-
+    main_ios(data_flist, output_fname, oxygen_unit)
+"""
 # ----------------------------------------------------------------------
 
 # NODC data
@@ -205,6 +272,15 @@ for s in ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']:
 stn = 'P4'
 # data_type = 'OSD'
 
+raw_data_dir = 'D:\\lineP\\{}_raw_data\\'.format(stn)
+
+raw_nodc_files = glob.glob(raw_data_dir + 'wodselect\\*.nc')
+raw_wp_files = glob.glob(raw_data_dir + 'water_properties\\*.nc')
+raw_wp_files.sort()
+
+output_dir = 'D:\\lineP\\csv_data\\01_convert\\'
+
+"""
 # nodc_file = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #             'line_P_data_products\\{}\\wodselect\\' \
 #             'ocldb1661989089.32104_{}.nc'.format(stn, data_type)
@@ -213,89 +289,36 @@ stn = 'P4'
 #             'line_P_data_products\\{}\\wodselect\\' \
 #             'ocldb1662746296.725_{}.nc'.format(stn, data_type)
 
-p26_parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-                 'line_P_data_products\\{}\\wodselect\\'.format(stn)
-p26_files = [
-    os.path.join(p26_parent_dir, 'ocldb1661989089.32104_OSD.nc'),
-    os.path.join(p26_parent_dir, 'already_in_ios_archive',
-                 'ocldb1663010426.31871_CTD.nc')]
+# p26_parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#                  'line_P_data_products\\{}\\wodselect\\'.format(stn)
+# p26_files = [
+#     os.path.join(p26_parent_dir, 'ocldb1661989089.32104_OSD.nc'),
+#     os.path.join(p26_parent_dir, 'already_in_ios_archive',
+#                  'ocldb1663010426.31871_CTD.nc')]
 
-p4_parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-                'line_P_data_products\\{}\\wodselect\\'.format(stn)
-p4_files = [
-    os.path.join(p4_parent_dir, 'ocldb1662746296.725_OSD.nc'),
-    os.path.join(p4_parent_dir, 'already_in_ios_archive',
-                 'ocldb1662746296.725_CTD.nc')]
+p26_parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+                 'our_warming_ocean\\osp_sst\\raw\\'
+p26_files = glob.glob(p26_parent_dir + '*.nc')
+p26_files.sort()
+output_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\our_warming_ocean\\osp_sst\\csv\\'
+
+# p4_parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#                 'line_P_data_products\\{}\\wodselect\\'.format(stn)
+# p4_files = [
+#     os.path.join(p4_parent_dir, 'ocldb1662746296.725_OSD.nc'),
+#     os.path.join(p4_parent_dir, 'already_in_ios_archive',
+#                  'ocldb1662746296.725_CTD.nc')]
 
 # nodc_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #            'line_P_data_products\\{}\\wodselect\\'.format(stn)
 # nodc_flist = glob.glob(nodc_dir + '*.nc', recursive=False)
 # nodc_flist.sort()
-if stn == 'P26':
-    nodc_flist = p26_files  # p4_files  # p26_files
-elif stn == 'P4':
-    nodc_flist = p4_files
+# output_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'line_P_data_products\\csv\\has_osd_ctd_flags\\' \
+#              '01_convert\\'
+"""
 
-dtype_list = []
+main_nodc(raw_nodc_files, output_dir + '{}_NODC_OSD_CTD_data.csv'.format(stn))
 
-# Initialize dataframe to hold data
-df_nodc = pd.DataFrame(
-    columns=['Profile number', 'Latitude [deg N]', 'Longitude [deg E]',
-             'Time', 'Depth [m]', 'Temperature [C]',
-             'Temperature profile flag', 'Salinity [PSS-78]',
-             'Salinity profile flag', 'Oxygen [umol/kg]',
-             'Oxygen profile flag'])
-
-profile_number = 0
-for f in nodc_flist:
-    print(os.path.basename(f))
-    file_dtype = f[-6:-3]
-    dtype_list.append(file_dtype)
-
-    nodc_ds = xr.open_dataset(f)
-
-    # Get profile start and end indices
-    nodc_start_idx = np.concatenate(
-        (np.array([0]), np.where(np.diff(nodc_ds.z.data) < 0)[0] + 1))
-
-    nodc_end_idx = np.concatenate(
-        (nodc_start_idx[1:], np.array([len(nodc_ds.z.data)])))
-
-    for i in range(len(nodc_start_idx)):
-        st = nodc_start_idx[i]
-        en = nodc_end_idx[i]
-        prof_len = en - st
-        dct_add = {
-            'Profile number': np.repeat(profile_number, prof_len),
-            'Latitude [deg N]': np.repeat(nodc_ds.lat.data[i], prof_len),
-            'Longitude [deg E]': np.repeat(nodc_ds.lon.data[i], prof_len),
-            'Time': np.repeat(nodc_ds.time.data[i], prof_len),
-            'Depth [m]': nodc_ds.z.data[st:en],
-            'Temperature [C]': nodc_ds.Temperature.data[st:en],
-            'Temperature profile flag': np.repeat(
-                nodc_ds.Temperature_WODprofileflag.data[i], prof_len),
-            'Salinity [PSS-78]': nodc_ds.Salinity.data[st:en],
-            'Salinity profile flag': np.repeat(
-                nodc_ds.Salinity_WODprofileflag.data[i], prof_len),
-            'Oxygen [umol/kg]': nodc_ds.Oxygen.data[st:en],
-            'Oxygen profile flag': np.repeat(
-                nodc_ds.Oxygen_WODprofileflag.data[i], prof_len),
-        }
-        df_nodc = pd.concat((df_nodc, pd.DataFrame(dct_add)))
-
-        profile_number += 1
-
-# Save the df
-output_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-             'line_P_data_products\\csv\\has_osd_ctd_flags\\' \
-             '01_convert\\'
-output_file_name = stn + '_NODC'
-
-for dtype in dtype_list:
-    output_file_name += '_' + dtype
-output_file_name += '_data.csv'
-
-nodc_output = os.path.join(output_dir, output_file_name)
-print(nodc_output)
-
-df_nodc.to_csv(nodc_output, index=False)
+main_ios(raw_wp_files, output_dir + '{}_WP_CTD_BOT_CHE_data.csv'.format(stn),
+         'umol/kg')
