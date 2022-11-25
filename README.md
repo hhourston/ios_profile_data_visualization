@@ -13,6 +13,7 @@ Author: Hana Hourston (@hhourston)
 2. Apply the originator flags
    1. For NODC, a flag value of "0" indicates data that passed all quality control checks, so data having a non-zero flag are discarded. NODC flags are listed below. 
 3. Latitude, longitude, depth, range, and gradient checks
+   1. Use the depth, range and gradient limits from Garcia et al. (2018) and follow the steps in Garcia et al. (2019)
 4. If other data types are included (e.g., CHE and BOT), check for more than one profile from the same time and location. Keep only the profile with the higher depth resolution (i.e., the CTD profile) 
 5. Data binning to the nearest whole-number depth in meters
 6. Flagging of binned depth duplicates in profiles
@@ -60,4 +61,6 @@ R.A. Locarnini, M.M. Zweng, A.V. Mishonov, O.K. Baranova, D.
 Seidov, and J.R. Reagan (2019). World Ocean Atlas 2018, Volume 
 3: Dissolved Oxygen, Apparent Oxygen Utilization, and Dissolved 
 Oxygen Saturation. A. Mishonov Technical Editor. 
-*NOAA Atlas NESDIS 83*, 38pp.
+*NOAA Atlas NESDIS 83*, 38pp. (Available at https://www.nodc.noaa.gov/OC5/woa18/pubwoa18.html).
+
+Garcia, H. E., T. P. Boyer, R. A. Locarnini, O. K. Baranova, M. M. Zweng (2018). World Ocean Database 2018: User’s Manual (prerelease). A.V. Mishonov, Technical Ed., NOAA, Silver Spring, MD (Available at https://www.NCEI.noaa.gov/OC5/WOD/pr_wod.html). 
