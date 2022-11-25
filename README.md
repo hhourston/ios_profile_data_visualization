@@ -1,5 +1,5 @@
-# ios_ctd_visualization
-Visualization of netCDF CTD data collected by the Institute of Ocean Sciences. Support for netCDF BOT (bottle) and CHE (chemistry) data added 2022-09-02.
+# ios_profile_data_visualization
+This repository contains code for three similar projects. It was originally made for producing standard plots of temperature, salinity and oxygen CTD (conductivity, temperature, depth) data from select Institute of Ocean Sciences (IOS) stations in the Salish Sea, BC. The code has since been expanded on. Processing steps have been added to allow the user to plot oxygen on the potential density anomaly surfaces 26.5, 26.7, and 26.9, which correspond to the potential densities 1026.5 kg/$m^3$, 1026.7 kg/$m^3$, and 1026.9 kg/$m^3$, respectively. Such plots were made for stations P4 and P26 on Line P using CTD and bottle data from the IOS and NOAA (National Oceanographic and Atmospheric Administration) archives. The repository also contains code for exploring data coverage of the Douglas Channel over 1951-1954 -- see the folder "UBC_data" for more. 
 
 Author: Hana Hourston (@hhourston)
 
@@ -19,7 +19,7 @@ Author: Hana Hourston (@hhourston)
 6. Flagging of binned depth duplicates in profiles
 7. Plotting: Annual sampling frequency, monthly sampling frequency, filled contours, anomalies at select depths
 
-## Steps to plot oxygen data on density surfaces 26.9, 26.7 and 26.5
+## Steps to plot oxygen data on potential density anomaly surfaces 26.9, 26.7 and 26.5
 8. Compute the potential density anomaly at each observed level in the data using TEOS-10. Use a reference pressure of 0 dbar
 9. Linearly interpolate oxygen observations sampled with hydro bottles at discrete depths to 1m vertical resolution. Do not interpolate if any of oxygen, potential temperature or absolute salinity are spaced more than 0.2 potential density anomaly units apart.
 10. Make the selection of oxygen from the 1m resolution profiles only if the computed potential density anomaly is within 0.005 units of the specified density anomaly (i.e., bin oxygen data to the select density anomalies)
