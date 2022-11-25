@@ -41,6 +41,8 @@ because the former is robust to outliers.
 \
 The depth, range, and gradient checks are taken from the NCEI WOA18.  
 \
+The monthly sampling frequency plot code was based off of https://github.com/cyborgsphinx/ios-inlets.  
+\
 The steps to plot oxygen data on select density surfaces are 
 taken from Crawford and Peña (2016).
 
