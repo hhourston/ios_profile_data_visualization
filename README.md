@@ -1,5 +1,9 @@
 # ios_profile_data_visualization
-This repository contains code for three similar projects. It was originally made for producing standard plots of temperature, salinity and oxygen CTD (conductivity, temperature, depth) data from select Institute of Ocean Sciences (IOS) stations in the Salish Sea, BC. The code has since been expanded on. Processing steps have been added to allow the user to plot oxygen on the potential density anomaly surfaces 26.5, 26.7, and 26.9, which correspond to the potential densities 1026.5 kg/$m^3$, 1026.7 kg/$m^3$, and 1026.9 kg/$m^3$, respectively. Such plots were made for stations P4 and P26 on Line P using CTD and bottle data from the IOS and NOAA (National Oceanographic and Atmospheric Administration) archives. The repository also contains code for exploring data coverage of the Douglas Channel over 1951-1954 -- see the folder "UBC_data" for more. 
+This repository contains code for three similar projects. It was originally made for producing standard plots of temperature, salinity and oxygen CTD (conductivity, temperature, depth) data from select Institute of Ocean Sciences (IOS) stations in the Salish Sea, BC.  
+\
+The code has since been expanded on for carrying out updates on the oxygen dataset from Crawford and Pena (2021). Processing steps have been added to allow the user to plot oxygen on the potential density anomaly surfaces 26.5, 26.7, and 26.9, which correspond to the potential densities 1026.5 kg/$m^3$, 1026.7 kg/$m^3$, and 1026.9 kg/$m^3$, respectively. Such plots were made for stations P4 and P26 on Line P using CTD and bottle data from the IOS and NOAA (National Oceanographic and Atmospheric Administration) archives. Additional scripts for this project that explore and manipulate the dataset from Crawford and Pena (2021) are given in the "lineP" folder. 
+\
+The repository also contains code for exploring the University of British Columbia's (UBC) data coverage of the Douglas Channel over 1951-1954 -- see the folder "ubc" for more. 
 
 Author: Hana Hourston (@hhourston)
 
