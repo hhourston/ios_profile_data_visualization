@@ -19,4 +19,4 @@ No. 14. Indian Arm Cruises, 1958. (June, 1959).
 No. 15. British Columbia Inlet Cruise, I959. (August, 1959).  
 
 ## References
-G.L. Pickard (1961). Oceanographic features of inlets in the British Columbia Mainland Coast. J. Fish. Res. Bd. Canada, *18*(6), 1961.
+G.L. Pickard (1961). Oceanographic features of inlets in the British Columbia Mainland Coast. J. Fish. Res. Bd. Canada, *18*(6), pp. 907-999.
