@@ -4,8 +4,21 @@ import glob
 import numpy as np
 
 
-def do_update(bill_file_265, bill_file_267, bill_file_269, hana_file,
-              nrows_to_drop=None):
+def do_update(bill_file_265: str, bill_file_267: str, bill_file_269: str,
+              hana_file: str, nrows_to_drop=None):
+    """
+    Update Bill's station p4 and p26 csv datasets with data from IOS
+    and NOAA that has been pre-gathered and formatted correctly
+    :param bill_file_265: absolute file name
+    :param bill_file_267: absolute file name
+    :param bill_file_269: absolute file name
+    :param hana_file: path to csv dataset from IOS and NOAA that has been
+    gathered and formatted correctly
+    :param nrows_to_drop: number of rows to drop from the end of each of
+    [bill_file_265, bill_file_267, bill_file_269]
+    :return: nothing
+    """
+
     input_file_list = [bill_file_265, bill_file_267, bill_file_269]
     densities = [26.5, 26.7, 26.9]
 

@@ -10,16 +10,18 @@ https://stackoverflow.com/questions/42864823/how-to-smoothen-2d-color-map-in-mat
 """
 
 
-def gaussian_cbar_blur(img_path, output_dir):
+def gaussian_cbar_blur(img_path: str, output_dir: str):
+    # Do a gaussian blur on a contour plot colorbar to make
+    # the colorbar continuous instead of discrete
     img = imread(img_path)
 
     # print(img.shape)
 
-    #I used msPaint to get coords... there's probably a better way
+    # Got these numbers through trial and error
     # x0, y0, x1, y1 = 87,215,764,1270 #chart area (pixel coords)
-    x0, y0, x1, y1 = 37, 849, 543, 872 #chart area (pixel coords)
+    x0, y0, x1, y1 = 37, 849, 543, 872  # chart area (pixel coords)
 
-    #you could use a gaussian filter to get a rounder blur pattern
+    # you could use a gaussian filter to get a rounder blur pattern
     # kernel = np.ones((5,5),)/25 #mean value convolution
 
     # #convolve roi with averaging filter
@@ -36,7 +38,7 @@ def gaussian_cbar_blur(img_path, output_dir):
     # Try gaussian filter instead
     # red
     img[x0:x1, y0:y1, 0] = gaussian_filter(
-        img[x0:x1, y0:y1, 0], 20, mode='nearest') #sigma=4 originally
+        img[x0:x1, y0:y1, 0], 20, mode='nearest')  # sigma=4 originally
     # blue
     img[x0:x1, y0:y1, 1] = gaussian_filter(
         img[x0:x1, y0:y1, 1], 20, mode='nearest')
@@ -44,8 +46,8 @@ def gaussian_cbar_blur(img_path, output_dir):
     img[x0:x1, y0:y1, 2] = gaussian_filter(
         img[x0:x1, y0:y1, 2], 20, mode='nearest')
 
-    #do it again for legend area
-    #...
+    # do it again for legend area
+    # ...
     output_path = os.path.join(
         output_dir, os.path.basename(img_path).replace('.png', '_gaussian2.png'))
     imsave(output_path, img)
@@ -58,6 +60,7 @@ contour_plot_path = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
 output_folder = contour_plot_path + 'blurred_cbar\\'
 # gaussian_cbar_blur(contour_plot_path)
 
+# Find all the files that I want to blur the colorbar of
 plot_list = glob.glob(contour_plot_path + '*contourf*.png')
 
 for pl in plot_list:

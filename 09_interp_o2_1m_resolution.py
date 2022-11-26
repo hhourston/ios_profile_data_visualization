@@ -8,9 +8,11 @@ from tqdm import trange
 from helpers import get_profile_st_en_idx
 
 
-def interp_1m_resolution(in_df_name, out_df_name, oxy_unit, station):
+def interp_1m_resolution(in_df_name: str, out_df_name: str,
+                         oxy_unit: str, station: str):
     """
     Linearly interpolate bottle oxygen to 1m vertical resolution
+    if not already at that resolution
     :param in_df_name:
     :param station:
     :param out_df_name:
@@ -38,9 +40,11 @@ def interp_1m_resolution(in_df_name, out_df_name, oxy_unit, station):
 
     # Initialize dataframe to hold interpolated data
     # Need time, density, oxygen value
-    out_df_columns = ['Profile number', 'Time', 'Profile is interpolated',
+    out_df_columns = ['Profile number', 'Latitude [deg N]',
+                      'Longitude [deg E]', 'Time',
+                      'Profile is interpolated',
                       'Depth [m]', 'Oxygen [umol/kg]',
-                      'Potential density anomaly [kg/m]']
+                      'Potential density anomaly [kg/m]', 'File']
     out_df = pd.DataFrame(columns=out_df_columns)
 
     # Iterate through all the profiles
@@ -69,12 +73,15 @@ def interp_1m_resolution(in_df_name, out_df_name, oxy_unit, station):
             observed_profile_len = len(in_df.loc[st:en, 'Profile number'])
             dict_add = {
                 'Profile number': in_df.loc[st:en, 'Profile number'],
+                'Latitude [deg N]': in_df.loc[st:en, 'Latitude [deg N]'],
+                'Longitude [deg E]': in_df.loc[st:en, 'Longitude [deg E]'],
                 'Time': in_df.loc[st:en, 'Time'],
                 'Depth [m]': in_df.loc[st:en, 'Depth [m]'],
                 'Profile is interpolated': np.zeros(observed_profile_len),
                 'Oxygen [umol/kg]': in_df.loc[st:en, 'Oxygen [umol/kg]'],
                 'Potential density anomaly [kg/m]':
-                    in_df.loc[st:en, 'Potential density anomaly [kg/m]']
+                    in_df.loc[st:en, 'Potential density anomaly [kg/m]'],
+                'File': in_df.loc[st:en, 'File']
             }
             # for key, value in dict_add.items():
             #     print(key, len(value))
@@ -115,12 +122,18 @@ def interp_1m_resolution(in_df_name, out_df_name, oxy_unit, station):
             dict_add = {
                 'Profile number': np.repeat(in_df.loc[st, 'Profile number'],
                                             interpolated_profile_len),
+                'Latitude [deg N]': np.repeat(in_df.loc[st, 'Latitude [deg N]'],
+                                              interpolated_profile_len),
+                'Longitude [deg E]': np.repeat(in_df.loc[st, 'Longitude [deg E]'],
+                                               interpolated_profile_len),
                 'Time': np.repeat(in_df.loc[st, 'Time'],
                                   interpolated_profile_len),
                 'Depth [m]': depth_1m_freq,
                 'Profile is interpolated': np.ones(interpolated_profile_len),
                 'Oxygen [umol/kg]': oxy_interpolated,
-                'Potential density anomaly [kg/m]': density_interpolated
+                'Potential density anomaly [kg/m]': density_interpolated,
+                'File': np.repeat(in_df.loc[st, 'File'],
+                                  interpolated_profile_len)
             }
             out_df = pd.concat((out_df, pd.DataFrame(dict_add)))
 
@@ -135,6 +148,7 @@ def interp_1m_resolution(in_df_name, out_df_name, oxy_unit, station):
     summary_stats_file = os.path.join(
         os.path.dirname(out_df_name),
         '{}_interpolation_summary_statistics.txt'.format(station))
+
     with open(summary_stats_file, 'w') as txtfile:
         txtfile.write('Input file: ' + in_df_name + '\n')
         txtfile.write('Output file: ' + out_df_name + '\n')
@@ -168,16 +182,22 @@ def interp_1m_resolution(in_df_name, out_df_name, oxy_unit, station):
 stn = 'P4'
 station_name = stn
 # station_name = 'OSP'
-parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-             'line_P_data_products\\csv\\has_osd_ctd_flags\\'
+
+# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'line_P_data_products\\csv\\has_osd_ctd_flags\\'
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #              'bottom_oxygen\\'
 
-density_dir = '08_potential_density_anomalies\\'
-density_file = os.path.join(parent_dir, density_dir,
-                            '{}_data'.format(stn))
+parent_dir = 'D:\\lineP\\csv_data\\'
 
-o2_interp_dir = '09N_interpolate_o2_to_1m_res'
+density_dir = '08_potential_density_anomalies\\'
+
+density_file = os.path.join(parent_dir, density_dir,
+                            '{}_data.csv'.format(stn))
+# density_file = os.path.join(parent_dir, density_dir,
+#                             '{}_ctd_data_qc.csv'.format(stn))
+
+o2_interp_dir = '09_interpolate_o2_to_1m_res'
 o2_interp_file = os.path.join(parent_dir, o2_interp_dir,
                               os.path.basename(density_file))
 

@@ -1,3 +1,7 @@
+"""
+Calculate the potential density anomaly with TEOS-10 corresponding
+to each observation. Do not interpolate -- those functions are deprecated
+"""
 import pandas as pd
 import numpy as np
 import gsw
@@ -10,40 +14,48 @@ from tqdm import trange
 # Charles Line P data product request
 
 
-def calculate_density(
-    temperature_C, salinity_SP, pressure_dbar, longitude, latitude
-):
-    """author: James Hannah (with some modifications by Hana)
-    """
-    assumed = False
-    if all(x is not None for x in [temperature_C, salinity_SP, pressure_dbar]):
-        # Calculate Absolute Salinity from Practical Salinity
-        salinity_SA = gsw.SA_from_SP(salinity_SP, pressure_dbar, longitude, latitude)
-        # Calculate Conservative Temperature of seawater from in-situ temperature
-        temperature_conserv = gsw.CT_from_t(salinity_SA, temperature_C, pressure_dbar)
-        # Compute density in kg/m
-        density = gsw.rho(
-            salinity_SA,
-            temperature_conserv,
-            pressure_dbar,
-        )
-        # print(len(density))
-    else:
-        density = []
-    # if len(density) == 0:
-    #     print(
-    #         "Not enough data to accurately compute density. Calculating density as though all values are 0"
-    #     )
-        assumed = True
-        # density = np.repeat(np.nan, )
-    #     # density = np.full(length, gsw.rho([0], [0], 0)[0])
-    return density, assumed
+# def calculate_density(
+#     temperature_C, salinity_SP, pressure_dbar, longitude, latitude
+# ):
+#     """author: James Hannah (with some modifications by Hana)
+#     """
+#     assumed = False
+#     if all(x is not None for x in [temperature_C, salinity_SP, pressure_dbar]):
+#         # Calculate Absolute Salinity from Practical Salinity
+#         salinity_SA = gsw.SA_from_SP(salinity_SP, pressure_dbar, longitude, latitude)
+#         # Calculate Conservative Temperature of seawater from in-situ temperature
+#         temperature_conserv = gsw.CT_from_t(salinity_SA, temperature_C, pressure_dbar)
+#         # Compute density in kg/m
+#         density = gsw.rho(
+#             salinity_SA,
+#             temperature_conserv,
+#             pressure_dbar,
+#         )
+#         # print(len(density))
+#     else:
+#         density = []
+#     # if len(density) == 0:
+#     #     print(
+#     #         "Not enough data to accurately compute density. Calculating density as though all values are 0"
+#     #     )
+#         assumed = True
+#         # density = np.repeat(np.nan, )
+#     #     # density = np.full(length, gsw.rho([0], [0], 0)[0])
+#     return density, assumed
 
 
 def calculate_pot_dens_anom(
         temperature_C, salinity_SP, pressure_dbar, longitude, latitude
 ):
-    # Calculate potential density anomalies
+    """
+    Calculate potential density anomalies
+    :param temperature_C: temperature in degrees Celsius
+    :param salinity_SP: practical salinity
+    :param pressure_dbar: pressure in decibars
+    :param longitude: positive east
+    :param latitude: positive north
+    :return: potential density anomalies
+    """
 
     # Calculate Absolute Salinity from Practical Salinity
     salinity_SA = gsw.SA_from_SP(salinity_SP, pressure_dbar,
@@ -60,6 +72,8 @@ def calculate_pot_dens_anom(
 
 
 def get_profile_st_en_idx(profile_numbers):
+    # Get start and end indices of a cast in a dataframe
+    # based on the assumption that each cast has a unique profile number
     profile_start_idx = np.unique(profile_numbers,
                                   return_index=True)[1]
     # Minus 1 to account for pandas inclusive indexing
@@ -69,130 +83,130 @@ def get_profile_st_en_idx(profile_numbers):
     return profile_start_idx, profile_end_idx
 
 
-def interp_oxy_to_density_surfaces(df_file_name, out_df_name,
-                                   select_densities, oxy_unit):
-    # Interpolate oxygen to constant density surfaces
-    # Select density surfaces defined in densities parameter
-    # Returns oxygen interpolated to select density surfaces
+# def interp_oxy_to_density_surfaces(df_file_name: str, out_df_name: str,
+#                                    select_densities, oxy_unit):
+#     # Interpolate oxygen to constant density surfaces
+#     # Select density surfaces defined in densities parameter
+#     # Returns oxygen interpolated to select density surfaces
+#
+#     # NOTE: Calling interp1d with NaNs present in input values
+#     # results in undefined behaviour. Data must be checked prior
+#     # to using this function.
+#     # Do interpolation for each profile
+#     in_df = pd.read_csv(df_file_name)
+#
+#     # Check if oxy unit is in umol/kg
+#     if oxy_unit == 'mL/L':
+#         pressure = gsw.p_from_z(
+#             -in_df.loc[:, 'Depth [m]'].to_numpy(float),
+#             in_df.loc[:, 'Latitude [deg N]'].to_numpy(float))
+#         in_df['Oxygen [umol/kg]'] = convert.ml_l_to_umol_kg(
+#             in_df.loc[:, 'Oxygen [mL/L]'].to_numpy(float),
+#             in_df.loc[:, 'Longitude [deg E]'].to_numpy(float),
+#             in_df.loc[:, 'Latitude [deg N]'].to_numpy(float),
+#             in_df.loc[:, 'Temperature [C]'].to_numpy(float),
+#             in_df.loc[:, 'Salinity [PSS-78]'].to_numpy(float),
+#             pressure, df_file_name)[0]
+#
+#     profile_start_idx = np.unique(in_df.loc[:, 'Profile number'],
+#                                   return_index=True)[1]
+#
+#     # Minus 1 to account for pandas inclusive indexing
+#     profile_end_idx = np.concatenate((profile_start_idx[1:] - 1,
+#                                       np.array([len(in_df)])))
+#
+#     # Initialize dataframe to hold interpolated data
+#     # Need time, density, oxygen value
+#     out_df_columns = ['Profile number', 'Time',
+#                       'Potential density anomaly level [kg/m]',
+#                       'Oxygen interpolated [umol/kg]']
+#     out_df = pd.DataFrame(columns=out_df_columns)
+#
+#     for i in range(len(profile_start_idx)):
+#         st = profile_start_idx[i]
+#         en = profile_end_idx[i]
+#         # print(st, en)
+#         if all(np.isnan(in_df.loc[st:en, 'Oxygen [umol/kg]'].to_numpy())):
+#             # Skip the profile
+#             continue
+#         elif st == en:
+#             print('Warning: profile number ' +
+#                   str(in_df.loc[st, 'Profile number']) +
+#                   ' has length 1; skipping')
+#             continue
+#         else:
+#             # If x_new is outside the interpolation range, use fill_value
+#             # and do not extrapolate or raise ValueError
+#             interp_fn = interp1d(
+#                 in_df.loc[st:en, 'Potential density anomaly [kg/m]'].to_numpy(float),
+#                 in_df.loc[st:en, 'Oxygen [umol/kg]'].to_numpy(float),
+#                 kind='linear',
+#                 bounds_error=False,
+#                 fill_value=np.nan
+#             )
+#             oxy_interpolated = interp_fn(select_densities)
+#
+#             # Append results to dataframe
+#             df_append = pd.DataFrame(
+#                 np.array([np.repeat(in_df.loc[st, 'Profile number'],
+#                                     len(select_densities)),
+#                           np.repeat(in_df.loc[st, 'Time'],
+#                                     len(select_densities)),
+#                           select_densities,
+#                           oxy_interpolated
+#                           ]).T,
+#                 columns=out_df_columns
+#             )
+#
+#             out_df = pd.concat((out_df, df_append))
+#
+#             out_df.reset_index(inplace=True, drop=True)
+#
+#     # Print summary statistics
+#
+#     # print(len(out_df))
+#     # print(out_df)
+#     # to_numpy converts Series to numpy object type array
+#     # unless dtype is specified
+#     print(np.nanmin(
+#         out_df.loc[:, 'Oxygen interpolated [umol/kg]'].to_numpy(float)))
+#     print(np.nanmax(
+#         out_df.loc[:, 'Oxygen interpolated [umol/kg]'].to_numpy(float)))
+#
+#     # out_df.drop(columns='index', inplace=True)
+#
+#     out_df.to_csv(out_df_name, index=False)
+#     return
 
-    # NOTE: Calling interp1d with NaNs present in input values
-    # results in undefined behaviour. Data must be checked prior
-    # to using this function.
-    # Do interpolation for each profile
-    in_df = pd.read_csv(df_file_name)
 
-    # Check if oxy unit is in umol/kg
-    if oxy_unit == 'mL/L':
-        pressure = gsw.p_from_z(
-            -in_df.loc[:, 'Depth [m]'].to_numpy(float),
-            in_df.loc[:, 'Latitude [deg N]'].to_numpy(float))
-        in_df['Oxygen [umol/kg]'] = convert.ml_l_to_umol_kg(
-            in_df.loc[:, 'Oxygen [mL/L]'].to_numpy(float),
-            in_df.loc[:, 'Longitude [deg E]'].to_numpy(float),
-            in_df.loc[:, 'Latitude [deg N]'].to_numpy(float),
-            in_df.loc[:, 'Temperature [C]'].to_numpy(float),
-            in_df.loc[:, 'Salinity [PSS-78]'].to_numpy(float),
-            pressure, df_file_name)[0]
-
-    profile_start_idx = np.unique(in_df.loc[:, 'Profile number'],
-                                  return_index=True)[1]
-
-    # Minus 1 to account for pandas inclusive indexing
-    profile_end_idx = np.concatenate((profile_start_idx[1:] - 1,
-                                      np.array([len(in_df)])))
-
-    # Initialize dataframe to hold interpolated data
-    # Need time, density, oxygen value
-    out_df_columns = ['Profile number', 'Time',
-                      'Potential density anomaly level [kg/m]',
-                      'Oxygen interpolated [umol/kg]']
-    out_df = pd.DataFrame(columns=out_df_columns)
-
-    for i in range(len(profile_start_idx)):
-        st = profile_start_idx[i]
-        en = profile_end_idx[i]
-        # print(st, en)
-        if all(np.isnan(in_df.loc[st:en, 'Oxygen [umol/kg]'].to_numpy())):
-            # Skip the profile
-            continue
-        elif st == en:
-            print('Warning: profile number ' +
-                  str(in_df.loc[st, 'Profile number']) +
-                  ' has length 1; skipping')
-            continue
-        else:
-            # If x_new is outside the interpolation range, use fill_value
-            # and do not extrapolate or raise ValueError
-            interp_fn = interp1d(
-                in_df.loc[st:en, 'Potential density anomaly [kg/m]'].to_numpy(float),
-                in_df.loc[st:en, 'Oxygen [umol/kg]'].to_numpy(float),
-                kind='linear',
-                bounds_error=False,
-                fill_value=np.nan
-            )
-            oxy_interpolated = interp_fn(select_densities)
-
-            # Append results to dataframe
-            df_append = pd.DataFrame(
-                np.array([np.repeat(in_df.loc[st, 'Profile number'],
-                                    len(select_densities)),
-                          np.repeat(in_df.loc[st, 'Time'],
-                                    len(select_densities)),
-                          select_densities,
-                          oxy_interpolated
-                          ]).T,
-                columns=out_df_columns
-            )
-
-            out_df = pd.concat((out_df, df_append))
-
-            out_df.reset_index(inplace=True, drop=True)
-
-    # Print summary statistics
-
-    # print(len(out_df))
-    # print(out_df)
-    # to_numpy converts Series to numpy object type array
-    # unless dtype is specified
-    print(np.nanmin(
-        out_df.loc[:, 'Oxygen interpolated [umol/kg]'].to_numpy(float)))
-    print(np.nanmax(
-        out_df.loc[:, 'Oxygen interpolated [umol/kg]'].to_numpy(float)))
-
-    # out_df.drop(columns='index', inplace=True)
-
-    out_df.to_csv(out_df_name, index=False)
-    return
-
-
-def annual_avg_on_density_surfaces(df_file: str, output_file_name: str):
-    df = pd.read_csv(df_file)
-    # Convert time to pandas datetime
-    df['Datetime'] = pd.to_datetime(df.loc[:, 'Time'])
-    years_available = np.sort(np.unique(df.loc[:, 'Datetime'].dt.year))
-
-    # Initialize dataframe to hold annual averages
-    density_column = 'Potential density anomaly level [kg/m]'
-    df_avg = pd.DataFrame(
-        columns=['Year', density_column,
-                 'Average interpolated oxygen [umol/kg]'])
-
-    # Take the average for each year and density level
-    for i in range(len(years_available)):
-        for sigma_theta in df.loc[:2, density_column]:
-            indexer = np.where(
-                (df.loc[:, 'Datetime'].dt.year == years_available[i]) &
-                (df.loc[:, density_column] == sigma_theta)
-            )[0]
-            df_avg.loc[len(df_avg)] = [
-                years_available[i], sigma_theta, np.nanmean(
-                    df.loc[indexer,
-                           'Oxygen interpolated [umol/kg]'].to_numpy(
-                        float))
-            ]
-
-    df_avg.to_csv(output_file_name, index=False)
-    return
+# def annual_avg_on_density_surfaces(df_file: str, output_file_name: str):
+#     df = pd.read_csv(df_file)
+#     # Convert time to pandas datetime
+#     df['Datetime'] = pd.to_datetime(df.loc[:, 'Time'])
+#     years_available = np.sort(np.unique(df.loc[:, 'Datetime'].dt.year))
+#
+#     # Initialize dataframe to hold annual averages
+#     density_column = 'Potential density anomaly level [kg/m]'
+#     df_avg = pd.DataFrame(
+#         columns=['Year', density_column,
+#                  'Average interpolated oxygen [umol/kg]'])
+#
+#     # Take the average for each year and density level
+#     for i in range(len(years_available)):
+#         for sigma_theta in df.loc[:2, density_column]:
+#             indexer = np.where(
+#                 (df.loc[:, 'Datetime'].dt.year == years_available[i]) &
+#                 (df.loc[:, density_column] == sigma_theta)
+#             )[0]
+#             df_avg.loc[len(df_avg)] = [
+#                 years_available[i], sigma_theta, np.nanmean(
+#                     df.loc[indexer,
+#                            'Oxygen interpolated [umol/kg]'].to_numpy(
+#                         float))
+#             ]
+#
+#     df_avg.to_csv(output_file_name, index=False)
+#     return
 
 
 # ---------------------------------------------------------------------
@@ -201,13 +215,15 @@ def annual_avg_on_density_surfaces(df_file: str, output_file_name: str):
 # Selected density surfaces: 1026.5 to 1026.9 kg/m^3
 # Make a plot with all three oxygen vs density surface on it
 # for each station: P4 and P26, LB08
-stn = 'P4'
+stn = 'P26'
 station_name = stn
 # station_name = 'OSP'
-parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-             'line_P_data_products\\csv\\has_osd_ctd_flags\\'
+# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'line_P_data_products\\csv\\has_osd_ctd_flags\\'
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #              'bottom_oxygen\\'
+
+parent_dir = 'D:\\lineP\\csv_data\\'
 
 in_dir = '04_inexact_duplicate_check\\'
 in_file = os.path.join(

@@ -5,6 +5,8 @@ import os
 
 def annual_avg_on_density_surfaces(input_file_name: str, output_file_name: str,
                                    density_surfaces: list, station: str):
+    # Take annual average of oxygen data on potential density anomaly surfaces
+
     df = pd.read_csv(input_file_name)
     # df columns are: Profile number, Time, Profile is interpolated,
     # Depth [m]	Oxygen [umol/kg], Potential density anomaly [kg/m]
@@ -30,12 +32,14 @@ def annual_avg_on_density_surfaces(input_file_name: str, output_file_name: str,
                 (df.loc[:, density_column] == density_surfaces[j])
             )[0]
             # Append a new row to the end of the initialized df
-            df_avg.loc[len(df_avg)] = [
-                years_available[i], density_surfaces[j], np.nanmean(
-                    df.loc[indexer,
-                           'Oxygen [umol/kg]'].to_numpy(
-                        float))
-            ]
+            if len(indexer) > 0:
+                df_avg.loc[len(df_avg)] = [
+                    years_available[i], density_surfaces[j], np.nanmean(
+                        df.loc[indexer,
+                               'Oxygen [umol/kg]'].to_numpy(
+                            float)
+                    )
+                ]
             # Update summary statistics
             obs_per_year[i, j] = len(indexer)
 
@@ -62,22 +66,71 @@ def annual_avg_on_density_surfaces(input_file_name: str, output_file_name: str,
 # for each station: P4 and P26, LB08
 stn = 'P26'
 # station_name = stn
-station_name = 'OSP'
+# station_name = 'OSP'
 
-parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-             'line_P_data_products\\csv\\has_osd_ctd_flags\\'
+# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'line_P_data_products\\csv\\has_osd_ctd_flags\\'
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #              'bottom_oxygen\\'
 
-o2_bin_dir = '10N_bin_o2_to_select_densities'
+parent_dir = 'D:\\lineP\\csv_data\\'
+
+o2_bin_dir = '10_bin_o2_to_select_densities'
 o2_bin_file = os.path.join(parent_dir, o2_bin_dir,
                            '{}_data.csv'.format(stn))
+# o2_bin_file = os.path.join(parent_dir, o2_bin_dir,
+#                            '{}_ctd_data_qc.csv'.format(stn))
 
-avg_dir = '11N_annual_avg_on_dens_surfaces'
+avg_dir = '11_annual_avg_on_dens_surfaces'
 avg_file = os.path.join(parent_dir, avg_dir,
-                        '{}_data.csv'.format(stn))
+                        os.path.basename(o2_bin_file))
 
 densities = [26.5, 26.7, 26.9]
 
 annual_avg_on_density_surfaces(o2_bin_file, avg_file,
                                densities, stn)
+
+# ------------------------Bill's data------------------------
+"""
+import glob
+
+bill_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+           'line_P_data_products\\bill_crawford\\masked\\'
+
+station_name = '26'  # 26 4849
+input_files = glob.glob(bill_dir + f'*{station_name}*masked.csv')
+input_files.sort()
+
+output_df_filename = bill_dir + f'CrawfordPena Line P 1950-2015 {station_name} oxy annual avg.csv'
+
+dfout = pd.DataFrame(columns=['Year', 'Potential density anomaly bin [kg/m]',
+                              'Average oxygen [umol/kg]'])
+for f in input_files:
+    dfin = pd.read_csv(f)
+    # Remove almost-all nan lines
+    print(len(dfin))
+    dfin.dropna(axis='index', how='all', subset=['Date'], inplace=True)
+    print(len(dfin))
+    obs_years = [int(d) for d in dfin.loc[:, 'Date']]
+    years_available = np.sort(np.unique(obs_years))
+    sigma_theta = np.round(dfin.loc[0, 'Sigma_Theta (from CT and AS)'], 1)
+    print(sigma_theta)
+    # Find the name of the oxygen column
+    ox_umol_colname = None
+    for colname in ['Ox (umol/kg) ', 'Ox (mmol/kg) ', 'O2 (umol/kg) ']:
+        # I think the mmol is just a typo in Bill's file
+        if colname in dfin.columns:
+            ox_umol_colname = colname
+    if ox_umol_colname is None:
+        print('Error: oxygen (umol/kg) column not found in input dataset')
+    is_close_mask = dfin.loc[:, 'is_close_to_station']
+    for y in years_available:
+        year_mask = obs_years == y
+        # Take average
+        avg_ox = np.nanmean(dfin.loc[year_mask & is_close_mask, ox_umol_colname])
+        # Add to output df
+        dfout.loc[len(dfout), :] = [y, sigma_theta, avg_ox]
+
+# Save dfout
+dfout.to_csv(output_df_filename, index=False)
+"""

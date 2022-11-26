@@ -8,8 +8,17 @@ from haversine import haversine
 import matplotlib.pyplot as plt
 
 
-def oxy_ml_l_to_umol_kg(var_df):
+# Coordinates from https://www.waterproperties.ca/linep/sampling.php
+OSP_COORDINATES = (50, -145)
+P4_COORDINATES = (48+39/60, -(126+40/60))
+OSP_SEARCH_RADIUS = 24.896972239634337  # half the distance from P35 to P26
+P4_SEARCH_RADIUS = max(
+    [24.65056612250387, 37.00682860346698]
+)/2  # 1/2 the distance from p4 to p5; distance (p3 to p4) < distance (p4 to p5)
 
+
+def oxy_ml_l_to_umol_kg(var_df):
+    # Convert oxygen units of ml/l to umol/kg
     oxygen_umol_per_ml = 44.661
     metre_cube_per_litre = 0.001
 
@@ -49,6 +58,9 @@ def oxy_ml_l_to_umol_kg(var_df):
 
 
 def range_check(depth, var_data, range_df):
+    # Carry out range check based on Garcia et al. (2018)
+    # and Garcia et al. (2019), two documents about the WOA18
+
     # Initialize range mask
     range_mask = np.repeat(True, len(depth))
     # True is good, False is failing
@@ -81,6 +93,9 @@ def range_check(depth, var_data, range_df):
 
 
 def depth_inv_check(var_df):
+    # Check for depth inversions following Garcia et al. (2018)
+
+    # Number of observations in the dataframe
     nobs = len(var_df)
 
     # Initialize mask for depth inversion and copy check
@@ -99,9 +114,8 @@ def depth_inv_check(var_df):
         indices = np.arange(prof_start_ind[i], prof_end_ind[i])
 
         # Take first-order difference on the depths
+        # All downcasts so don't need to account for upcasts
         profile_depth_diffs = np.diff(var_df.loc[indices, 'Depth [m]'])
-
-        # TODO check for upcasts? Otherwise any are all masked out
 
         profile_depth_mask = np.repeat(True, len(indices))
         profile_depth_mask[1:] = profile_depth_diffs > 0
@@ -112,6 +126,9 @@ def depth_inv_check(var_df):
 
 
 def plot_after_coord_checks(station, inFilePath, outPNGpath):
+    # Plot coordinates of observations after doing
+    # latitude and longitude checks on the observations
+
     ctd_df = pd.read_csv(inFilePath)
 
     # Lat/lon checks
@@ -170,8 +187,30 @@ def plot_after_coord_checks(station, inFilePath, outPNGpath):
     return
 
 
-def main(station, inFilePath, outFilePath, coord_check='planar', station_coords=None):
-    # coord_check: 'planar' or 'haversine', must provide station_coords (lat, lon) for haversine
+def main(station, inFilePath: str, outFilePath: str,
+         coord_check_type: str = 'haversine',
+         coord_check_limit_km=None, station_coords=None):
+    """
+    Do quality control checks on the input dataset
+    Most checks are from Garcia et al. (2018)
+    Save summary statistics from each check to a text file
+
+    Types of QC checks:
+    - latitude-longitude check: make sure observations are within a certain
+        distance from the intended station
+    - depth check: make sure no observations above water or below 10,000m
+    - range check: temperature, salinity or oxygen not out of accepted range
+        for the general location (i.e., coastal north pacific ocean)
+    - gradient check: remove any excessive gradients or inversions
+    :param station: station name
+    :param inFilePath: absolute path
+    :param outFilePath: absolute path
+    :param coord_check_type: 'planar' or 'haversine'
+    :param coord_check_limit_km:
+    :param station_coords: must provide station_coords (lat, lon) for haversine
+    :return:
+    """
+
     ctd_df = pd.read_csv(inFilePath)
     oxygen_column = ctd_df.columns[
         ['Oxygen' in colname for colname in ctd_df.columns]][0]
@@ -193,7 +232,7 @@ def main(station, inFilePath, outFilePath, coord_check='planar', station_coords=
         station, np.nanmin(ctd_df.loc[:, 'Longitude [deg E]']),
         np.nanmax(ctd_df.loc[:, 'Longitude [deg E]'])))
 
-    if coord_check == 'planar':
+    if coord_check_type == 'planar':
         # Set maximum variation limit from median
         # 2022-09-06 reduced from 0.1 to 0.075
         limit = 0.075 if station_coords is None else station_coords
@@ -204,17 +243,19 @@ def main(station, inFilePath, outFilePath, coord_check='planar', station_coords=
 
         # Apply the mask
         ctd_df_out = ctd_df.loc[latlon_mask, :]
-    elif coord_check == 'haversine':
-        km_to_decimal_degrees = 1/111
+    elif coord_check_type == 'haversine':
         # The limit used in Cummins & Ross (2020)
-        limit = 24 * km_to_decimal_degrees
+        if coord_check_limit_km is None:
+            coord_check_limit_km = 24
+        # Computes distances in km
         distances = np.array([haversine((lat_i, lon_i), station_coords)
                               for lat_i, lon_i in zip(ctd_df.loc[:, 'Latitude [deg N]'],
                                                       ctd_df.loc[:, 'Longitude [deg E]'])])
-        latlon_mask = distances <= limit
+        latlon_mask = distances <= coord_check_limit_km
         ctd_df_out = ctd_df.loc[latlon_mask, :]
     else:
-        print(f'coord_check method {coord_check} is invalid')
+        print(f'coord_check method {coord_check_type} is invalid')
+        return
 
     # Reset the index
     ctd_df_out.reset_index(drop=True, inplace=True)
@@ -314,7 +355,8 @@ def main(station, inFilePath, outFilePath, coord_check='planar', station_coords=
     summary_statistics_file = os.path.join(
         os.path.dirname(outFilePath),
         '{}_QC_summary_statistics.txt'.format(station))
-    with open(summary_statistics_file, 'w') as txtfile:
+
+    with open(summary_statistics_file, 'a') as txtfile:
         txtfile.write('Source file: {}\n'.format(inFilePath))
         txtfile.write('Output file: {}\n'.format(outFilePath))
         txtfile.write(
@@ -336,21 +378,7 @@ def main(station, inFilePath, outFilePath, coord_check='planar', station_coords=
         txtfile.write(
             'Number of S obs passing gradient check: {}\n'.format(sum(S_gradient_mask)))
         txtfile.write(
-            'Number of O obs passing gradient check: {}'.format(sum(O_gradient_mask)))
-
-    # # Combine masks with logical "and"
-    # merged_mask = latlon_mask & depth_lim_mask & depth_inv_mask
-    #
-    # T_mask = T_range_mask & T_gradient_mask
-    # S_mask = S_range_mask & S_gradient_mask
-    # O_mask = O_range_mask & O_gradient_mask
-    #
-    # # Apply the masks to the dataframe of observations
-    # ctd_df_out = ctd_df
-    # ctd_df_out.loc[~T_mask, 'Temperature [C]'] = np.nan
-    # ctd_df_out.loc[~S_mask, 'Salinity [PSS-78]'] = np.nan
-    # ctd_df_out.loc[~O_mask, 'Oxygen [umol/kg]'] = np.nan
-    # ctd_df_out = ctd_df_out.loc[merged_mask, :]
+            'Number of O obs passing gradient check: {}\n\n'.format(sum(O_gradient_mask)))
 
     # Export the QC'ed dataframe of observations to a csv file
     ctd_df_out.to_csv(outFilePath, index=False)
@@ -358,21 +386,31 @@ def main(station, inFilePath, outFilePath, coord_check='planar', station_coords=
     return
 
 
-# ------------------------------OSP upper ocean T---------------------------------
-parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-             'our_warming_ocean\\osp_sst\\csv\\'
+# ------------------------------Line P---------------------------------
+# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'our_warming_ocean\\osp_sst\\csv\\'
 
+parent_dir = 'D:\\lineP\\csv_data\\'
+
+# P4 P26
 sampling_station = 'P26'
-p26_coords = (50, -145)  # Cummins and Ross (2020)
+
+# data_file_path = os.path.join(
+#     parent_dir, '01b_apply_nodc_flags\\{}_NODC_OSD_CTD_data.csv'.format(sampling_station))
 
 data_file_path = os.path.join(
-    parent_dir, '02_merge\\{}_data.csv'.format(sampling_station))
+    parent_dir, '01_convert\\{}_WP_CTD_BOT_CHE_data.csv'.format(sampling_station))
 
 output_file_path = os.path.join(
-    parent_dir, '03_QC', os.path.basename(data_file_path))
+    parent_dir, '02_QC', os.path.basename(data_file_path))
 
 main(sampling_station, data_file_path, output_file_path,
-     coord_check='haversine', station_coords=p26_coords)
+     coord_check_type='haversine', coord_check_limit_km=OSP_SEARCH_RADIUS,
+     station_coords=OSP_COORDINATES)
+
+# main(sampling_station, data_file_path, output_file_path,
+#      coord_check_type='haversine', coord_check_limit_km=P4_SEARCH_RADIUS,
+#      station_coords=P4_COORDINATES)
 
 # ---------------------------------SSI stations-----------------------------------
 # # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'

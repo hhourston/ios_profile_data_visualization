@@ -8,6 +8,12 @@ import numpy as np
 
 
 def main(fin, fout):
+    """
+    Bin the input data to 1m size vertical bins in the water column
+    :param fin: absolute path of input data file
+    :param fout: absolute path of output data file
+    :return: nothing
+    """
     # df_out_name = f.replace('.csv', '_no_qc_binned.csv')
 
     df_in = pd.read_csv(fin)
@@ -21,6 +27,7 @@ def main(fin, fout):
 
     bin_labels = [str(x) for x in depth_bins[1:] - 0.5]
 
+    # Do the binning
     df_in['Depth bin [m]'] = pd.cut(df_in['Depth [m]'], bins=depth_bins,
                                     right=False, labels=bin_labels)
 
@@ -45,12 +52,12 @@ stations = ['P4', 'P26']
 #     #     'csv\\{}_ctd_data.csv'.format(station)
 #     df_out_name = file_name.replace('qc', 'binned')
 #     main(file_name)
-for s in stations:
-    file_name = 'C:\\Users\\HourstonH\\Documents\\' \
-                'charles\\line_P_data_products\\csv\\' \
-                '04_inexact_duplicate_check\\' \
+# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'our_warming_ocean\\osp_sst\\csv\\'
+parent_dir = 'D:\\lineP\\csv_data\\'
+
+for s in stations[:1]:
+    file_name = parent_dir + '04_inexact_duplicate_check\\' \
                 '{}_data.csv'.format(s)
-    output_file = 'C:\\Users\\HourstonH\\Documents\\' \
-                  'charles\\line_P_data_products\\csv\\' \
-                  '05_data_binning\\{}_data.csv'.format(s)
+    output_file = parent_dir + '05_data_binning\\{}_data.csv'.format(s)
     main(file_name, output_file)

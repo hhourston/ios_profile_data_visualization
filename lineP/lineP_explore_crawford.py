@@ -8,6 +8,20 @@ import os
 def plot_stn_coords(lon, lat, figname: str, station: str,
                     lon_rng: tuple, lat_rng: tuple, year_rng: tuple,
                     lineP_df=None, true_coords=None):
+    """
+
+    :param lon: array or pd.Series of longitude values (+E)
+    :param lat: array or pd.Series of latitude values (+N)
+    :param figname: absolute file path of plot to be output
+    :param station: station name
+    :param lon_rng: (min, max)
+    :param lat_rng: (min, max)
+    :param year_rng: (min, max)
+    :param lineP_df: dataframe containing coordinates of all line P stations
+    :param true_coords: nominal coordinates of the station whose lon/lat
+    observations are plotted
+    :return:
+    """
     fig, ax = plt.subplots(figsize=(6, 4.5))
     plt.grid(color='lightgrey')
     ax.scatter(lon, lat, s=3)
@@ -40,6 +54,8 @@ def plot_stn_coords(lon, lat, figname: str, station: str,
     return
 
 
+# ----------various explorations below----------
+
 parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
              'line_P_data_products\\bill_crawford\\'
 
@@ -50,36 +66,6 @@ p4_file = parent_dir + 'CrawfordPena Line P 1950-2019 4849-9.csv'
 # p4_df = pd.read_csv(p4_265_file, nrows=1615, skip_blank_lines=True)
 # p4_df = pd.read_csv(p4_file, nrows=861, skip_blank_lines=True)
 p4_df = pd.read_csv(p4_file, nrows=662, skip_blank_lines=True)
-
-"""
-print(p4_265_df.columns)
-print(np.min(p4_265_df.loc[:, 'Longitude']))
-print(np.max(p4_265_df.loc[:, 'Longitude']))
-print(np.max(p4_265_df.loc[:, 'Longitude']) - np.min(p4_265_df.loc[:, 'Longitude']))
-
-print(np.min(p4_265_df.loc[:, 'Latitude']))
-print(np.max(p4_265_df.loc[:, 'Latitude']))
-print(np.max(p4_265_df.loc[:, 'Latitude']) - np.min(p4_265_df.loc[:, 'Latitude']))
-
-p4_nodc_mask = np.array(['NODC' in fname for fname in
-                         p4_265_df.loc[:, 'File'].astype(str)])
-
-print(np.min(p4_265_df.loc[p4_nodc_mask, 'Longitude']))
-print(np.max(p4_265_df.loc[p4_nodc_mask, 'Longitude']))
-print(np.max(p4_265_df.loc[p4_nodc_mask, 'Longitude']) - np.min(p4_265_df.loc[p4_nodc_mask, 'Longitude']))
-
-print(np.min(p4_265_df.loc[p4_nodc_mask, 'Latitude']))
-print(np.max(p4_265_df.loc[p4_nodc_mask, 'Latitude']))
-print(np.max(p4_265_df.loc[p4_nodc_mask, 'Latitude']) - np.min(p4_265_df.loc[p4_nodc_mask, 'Latitude']))
-
-print(np.min(p4_265_df.loc[~p4_nodc_mask, 'Longitude']))
-print(np.max(p4_265_df.loc[~p4_nodc_mask, 'Longitude']))
-print(np.max(p4_265_df.loc[~p4_nodc_mask, 'Longitude']) - np.min(p4_265_df.loc[~p4_nodc_mask, 'Longitude']))
-
-print(np.min(p4_265_df.loc[~p4_nodc_mask, 'Latitude']))
-print(np.max(p4_265_df.loc[~p4_nodc_mask, 'Latitude']))
-print(np.max(p4_265_df.loc[~p4_nodc_mask, 'Latitude']) - np.min(p4_265_df.loc[~p4_nodc_mask, 'Latitude']))
-"""
 
 lineP_coord_file = parent_dir + 'lineP_coordinates_ddegrees.csv'
 lineP_coord_df = pd.read_csv(lineP_coord_file, index_col=[0])
@@ -93,6 +79,7 @@ plot_stn_coords(p4_df.loc[:, 'Longitude'],
                 true_coords=nominal_p4_coords)
 
 # ----------------------------------------------------------------
+# # Switch which path is uncommented based on which station is being plotted
 # p26_file = parent_dir + 'CrawfordPena Line P 1950-2019 P526.csv'
 # p26_file = parent_dir + 'CrawfordPena Line P 1950-2019 P726.csv'
 p26_file = parent_dir + 'CrawfordPena Line P 1950-2019 P926.csv'
@@ -100,16 +87,6 @@ p26_file = parent_dir + 'CrawfordPena Line P 1950-2019 P926.csv'
 # p26_df = pd.read_csv(p26_file, nrows=1833)
 # p26_df = pd.read_csv(p26_file, nrows=1592)
 p26_df = pd.read_csv(p26_file, nrows=1435)
-
-"""
-print(np.min(p26_265_df.loc[:, 'Longitude']))
-print(np.max(p26_265_df.loc[:, 'Longitude']))
-print(np.max(p26_265_df.loc[:, 'Longitude']) - np.min(p26_265_df.loc[:, 'Longitude']))
-
-print(np.min(p26_265_df.loc[:, 'Latitude']))
-print(np.max(p26_265_df.loc[:, 'Latitude']))
-print(np.max(p26_265_df.loc[:, 'Latitude']) - np.min(p26_265_df.loc[:, 'Latitude']))
-"""
 
 nominal_p26_coords = (-145, 50)
 p26_coords_png = parent_dir + 'P26_coords_1955-2015.png'
@@ -172,6 +149,11 @@ print(lon0, lon1, lat0, lat1)
 # So search within [-145.5, -144.5] and [49.5, 50.5] for TSO
 """
 
+# Identify which observations in the Crawford and Pena (2021) dataset
+# are actually close to the station they've been put with
+
+# Compute search radii based on distance from the station in question
+# to the stations adjacent to it along Line P
 p4_radius_strict = max([p3_to_p4, p4_to_p5]) / 2
 p26_radius_strict = p35_to_p26 / 2
 print(p4_radius_strict, p26_radius_strict)
@@ -282,20 +264,24 @@ print(sum(mask_ios))
 print(len(p4_265_df))
 print(p4_265_df.loc[~(mask_nodc | mask_ios), 'File'])
 
-p4_265_df.loc[(mask_1970s & mask_ios), ['Date', 'Latitude', 'Longitude', 'File']].to_csv(
-    input_dir + 'p4_265_1970s_ios_file_list.csv', index=False)
+p4_265_df.loc[(mask_1970s & mask_ios), ['Date', 'Latitude', 'Longitude', 'File']
+              ].to_csv(input_dir + 'p4_265_1970s_ios_file_list.csv', index=False)
 
 print(p4_265_df.loc[mask_1970s & mask_ios, ['Date', 'Latitude', 'Longitude', 'File']])
 print(sum(mask_1970s & mask_nodc))
 print(sum(mask_1970s & mask_ios))
 
+# Compute haversine distance of observations to the nominal station coordinates
 p4_distances = np.array(
     [haversine((lat_i, lon_i),
                (lineP_coord_df.loc['P4', 'Lat ddegrees N'],
                 lineP_coord_df.loc['P4', 'Lon ddegrees E']))
      for lat_i, lon_i in zip(p4_265_df.loc[mask_1970s, 'Latitude'],
                              p4_265_df.loc[mask_1970s, 'Longitude'])])
+
+# Make a mask from the observations based on if theyre close enough to the station
 p4_latlon_mask = p4_distances <= p4_radius_strict
 
+# This confirms that all data from the 70's at P4 are actually far away from P4
 print(p4_265_df.loc[mask_1970s, ['Latitude', 'Longitude']])
 print(p4_265_df.loc[mask_1940s, ['Latitude', 'Longitude']])

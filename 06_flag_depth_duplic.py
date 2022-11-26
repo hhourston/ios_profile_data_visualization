@@ -5,10 +5,14 @@ import numpy as np
 # if they occur
 
 
-def main(station):
-    f = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
-        '{}_ctd_data_binned.csv'.format(station)
-    df_in = pd.read_csv(f)
+def main(fin, fout):
+    """
+    Flag bin depth duplicates in any casts
+    :param fin: absolute path of input data file
+    :param fout: absolute path of output data file
+    :return: nothing
+    """
+    df_in = pd.read_csv(fin)
 
     # Profile start indices
     prof_start_ind = np.unique(df_in.loc[:, 'Profile number'],
@@ -54,15 +58,29 @@ def main(station):
     df_out = df_in
 
     # Export dataframe to csv
-    df_out_name = f.replace('binned', 'binned_depth_dupl')
-    df_out.to_csv(df_out_name, index=False)
+    df_out.to_csv(fout, index=False)
 
     return
 
 
-ctd_station = '42'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+# ctd_station = '42'  # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
 
-ctd_stations = ['42', '59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']
+# ctd_stations = ['42', '59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']
+#
+# for s in ctd_stations:
+#     file_name = 'C:\\Users\\HourstonH\\Documents\\' \
+#                 'ctd_visualization\\csv\\' \
+#                 '{}_ctd_data_binned.csv'.format(s)
+#     df_out_name = file_name.replace('binned', 'binned_depth_dupl')
+#
+#     main(file_name, df_out_name)
 
-for s in ctd_stations:
-    main(s)
+stations = ['P4', 'P26']
+# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+#              'our_warming_ocean\\osp_sst\\csv\\'
+parent_dir = 'D:\\lineP\\csv_data\\'
+for s in stations[:]:
+    print(s)
+    file_name = parent_dir + '05_data_binning\\{}_data.csv'.format(s)
+    output_file = parent_dir + '06_flag_depth_duplicates\\{}_data.csv'.format(s)
+    main(file_name, output_file)

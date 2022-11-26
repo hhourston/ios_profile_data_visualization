@@ -1,12 +1,13 @@
 import os
 import glob
+import gsw
 import numpy as np
 import xarray as xr
 import pandas as pd
 import convert
 
 
-def get_var(ds, attr_names):
+def get_var(ds: xr.Dataset, attr_names):
     # Search for all the available salinity and temperature variables
     # More than one code is used
     for attr in attr_names:
@@ -16,7 +17,8 @@ def get_var(ds, attr_names):
     return None
 
 
-def get_temperature_var(ds):
+def get_temperature_var(ds: xr.Dataset, cast_length: int):
+    # Find temperature data in ds
     temperature_names = [
         "TEMPRTN1",
         "TEMPST01",
@@ -31,10 +33,11 @@ def get_temperature_var(ds):
     except AttributeError:
         print('Warning: temperature data not found')
         # return np.repeat(-99, len(ds.depth.data))
-        return np.repeat(np.nan, len(ds.depth.data))
+        return np.repeat(np.nan, cast_length)
 
 
-def get_salinity_var(ds):
+def get_salinity_var(ds: xr.Dataset, cast_length: int):
+    # Find salinity data in ds
     salinity_names = [
         "PSLTZZ01",
         "ODSDM021",
@@ -53,18 +56,35 @@ def get_salinity_var(ds):
         # Oxygen data not present in netCDF file
         print('Warning: salinity data not found')
         # return np.repeat(-99, len(ds.depth.data))
-        return np.repeat(np.nan, len(ds.depth.data))
+        return np.repeat(np.nan, cast_length)
 
 
-def get_pressure_var(ds):
+def get_pressure_var(ds: xr.Dataset, depth_data, latitude):
+    # Find pressure data in ds
     pressure_names = ['PRESPR01', 'sea_water_pressure']
-    return get_var(ds, pressure_names)
+
+    try:
+        return get_var(ds, pressure_names).data
+    except AttributeError:
+        # Compute pressure from depth using gsw toolbox
+        return gsw.p_from_z(-depth_data, latitude)
 
 
-def get_oxygen_var(ds, temp_data, sal_data, filename, required_unit='mL/L'):
-    # ds: xarray dataset
+def get_depth_var(ds: xr.Dataset):
+    # Find depth data in ds
+    depth_names = ['depth', 'depth_nominal']
+    try:
+        return get_var(ds, depth_names).data
+    except AttributeError:
+        print('Warning: depth data not found')
+
+
+def get_oxygen_var(ds: xr.Dataset, temp_data, sal_data, depth_data,
+                   filename, cast_length: int, required_unit='mL/L'):
+    # Find oxygen data in ds
     # DOXYZZ01: has mL/L units; DOXMZZ01: has umol/kg units
     oxygen_names = ["DOXYZZ01", "DOXMZZ01"]
+
     if required_unit == 'umol/kg':
         # Reverse the order of the list
         oxygen_names = oxygen_names[::-1]
@@ -72,7 +92,7 @@ def get_oxygen_var(ds, temp_data, sal_data, filename, required_unit='mL/L'):
 
     if oxy_variable is not None:
         # Find pressure data
-        pres_data = get_pressure_var(ds)
+        pres_data = get_pressure_var(ds, depth_data, ds.latitude.data)
         if required_unit == 'mL/L':
             oxygen, oxygen_computed, density_assumed = convert.convert_oxygen(
                 oxy_variable, oxy_variable.units, ds.longitude.data,
@@ -102,24 +122,25 @@ def get_oxygen_var(ds, temp_data, sal_data, filename, required_unit='mL/L'):
     else:
         # Oxygen data not present in netCDF file
         print('Warning: oxygen data not found')
-        return np.repeat(np.nan, len(temp_data))
+        return np.repeat(np.nan, cast_length)
 
 
-def get_fluorescence_var(ds):
-    # Fluorescence not in netCDF files only shell files
-    fluorescence_names = []
-    return
+def main_ios(nc_list: list, out_file_name: str, oxy_unit: str):
+    # Format input netCDF data for later data preparation steps and plotting
 
-
-def main_ios(nc_list, out_file_name, oxy_unit):
+    # Initialize output dataframe
     df_out = pd.DataFrame()
 
+    # Iterate through all netcdf file names in the input list
     for i, f in enumerate(nc_list):  # [139:140]
         print(os.path.basename(f))
         # Grab time, depth, TEMPS901, PSALST01
         ncdata = xr.open_dataset(f)
 
-        nobs_in_cast = len(ncdata.depth.data)
+        # Get depth data
+        depth_var = get_depth_var(ncdata)
+
+        nobs_in_cast = len(depth_var)
 
         profile_number = np.repeat(i, nobs_in_cast)
 
@@ -132,18 +153,19 @@ def main_ios(nc_list, out_file_name, oxy_unit):
                                nobs_in_cast)
 
         # Convert temperature and salinity data as needed
-        temp_var = get_temperature_var(ncdata)
-        sal_var = get_salinity_var(ncdata)
-        oxy_var = get_oxygen_var(ncdata, temp_var, sal_var,
-                                 os.path.basename(f), oxy_unit)
-        file_var = np.repeat(os.path.basename(f), nobs_in_cast)
-        cast_type_var = np.repeat(os.path.basename(f)[-6:-3].upper(),
-                                  nobs_in_cast)
+        temp_var = get_temperature_var(ncdata, nobs_in_cast)
+        sal_var = get_salinity_var(ncdata, nobs_in_cast)
+        oxy_var = get_oxygen_var(ncdata, temp_var, sal_var, depth_var,
+                                 os.path.basename(f), nobs_in_cast, oxy_unit)
+        file_array = np.repeat(os.path.basename(f), nobs_in_cast)
+        cast_type_array = np.repeat(os.path.basename(f)[-6:-3].upper(),
+                                    nobs_in_cast)
 
+        # Create dataframe to append to the output dataframe
         df_add = pd.DataFrame(
             np.array([profile_number, lat_array, lon_array, time_array,
-                      ncdata.depth.data, temp_var, sal_var, oxy_var, file_var,
-                      cast_type_var],
+                      depth_var, temp_var, sal_var, oxy_var, file_array,
+                      cast_type_array],
                      dtype='object'
                      ).transpose(),
             columns=['Profile number', 'Latitude [deg N]', 'Longitude [deg E]',
@@ -164,6 +186,7 @@ def main_ios(nc_list, out_file_name, oxy_unit):
 
 
 def main_nodc(nc_list, out_file_name):
+    # Format input netCDF data for later data preparation steps and plotting
     dtype_list = []
 
     # Initialize dataframe to hold data
@@ -318,7 +341,21 @@ output_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\our_warming_ocean\\osp_s
 #              '01_convert\\'
 """
 
-main_nodc(raw_nodc_files, output_dir + '{}_NODC_OSD_CTD_data.csv'.format(stn))
+# main_nodc(raw_nodc_files, output_dir + '{}_NODC_OSD_CTD_data.csv'.format(stn))
+idx_of_failure = raw_wp_files.index(
+    'D:\\lineP\\P4_raw_data\\water_properties\\2002-038-0025.bot.nc')
 
-main_ios(raw_wp_files, output_dir + '{}_WP_CTD_BOT_CHE_data.csv'.format(stn),
+idx2_of_failure = raw_wp_files.index(
+    'D:\\lineP\\P4_raw_data\\water_properties\\2016-040-0025.bot.nc')
+
+main_ios(raw_wp_files[:idx_of_failure],
+         output_dir + '{}_WP_CTD_BOT_CHE_data_1933_2002.csv'.format(stn),
          'umol/kg')
+
+# main_ios(raw_wp_files[idx_of_failure:idx2_of_failure],
+#          output_dir + '{}_WP_CTD_BOT_CHE_data_2002_2016.csv'.format(stn),
+#          'umol/kg')
+
+# main_ios(raw_wp_files[idx2_of_failure:],
+#          output_dir + '{}_WP_CTD_BOT_CHE_data_2016_2022.csv'.format(stn),
+#          'umol/kg')
