@@ -1,5 +1,5 @@
 import glob
-import gsw
+# import gsw
 import pandas as pd
 import numpy as np
 import os
@@ -142,7 +142,7 @@ def plot_avg_oxy_on_density_surfaces(df_file, png_name, station,
 
     format_scatter_plot(ax, station)
 
-    plt.savefig(png_name)
+    plt.savefig(png_name, dpi=400)
     plt.close(fig)
     return
 
@@ -190,14 +190,14 @@ def update_bill_oxy_plot(df_file_265: str, df_file_267: str,
         # Add best-fit line
         if len(mask_annual) < 3:
             print('Warning: not enough points to plot best fit line',
-                      'for {} density surface'.format(sigma_theta))
+                  'for {} density surface'.format(sigma_theta))
             continue
         x_linspace, y_hat_linspace = compute_fit(year_data, o2_avg_data,
                                                  fit_deg)
         ax.plot(x_linspace, y_hat_linspace, c=c)
 
     format_scatter_plot(ax, station)
-    plt.savefig(png_name)
+    plt.savefig(png_name, dpi=400)
     plt.close(fig)
     return
 
@@ -210,86 +210,89 @@ def update_bill_oxy_plot(df_file_265: str, df_file_267: str,
 #              'line_P_data_products\\csv\\has_osd_ctd_flags\\'
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #              'bottom_oxygen\\'
-parent_dir = 'D:\\lineP\\csv_data\\'
+# parent_dir = 'D:\\lineP\\csv_data\\'
+# parent_dir = ('C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\'
+#               'update_jan2024_sopo\\csv_data\\')
+#
+# # for each station: P4 and P26, LB08
+# stn = 'P26'
+# station_name = 'OSP' if stn == 'P26' else stn
+# # print(stn, station_name)
+# # data_types = 'CTD_BOT_CHE_OSD'
+# best_fit_degrees = 2 if stn == 'P4' else 1  # One for P26 and 2 for P4
+#
+# first_year_to_plot = 1950 if stn == 'P4' else None
 
-# for each station: P4 and P26, LB08
-stn = 'P4'
-station_name = 'OSP' if stn == 'P26' else stn
-# print(stn, station_name)
-# data_types = 'CTD_BOT_CHE_OSD'
-best_fit_degrees = 2 if stn == 'P4' else 1  # One for P26 and 2 for P4
-
-first_year_to_plot = 1950 if stn == 'P4' else None
-
-average_file = os.path.join(
-    parent_dir,
-    '11_annual_avg_on_dens_surfaces\\{}_data.csv'.format(stn))
 # average_file = os.path.join(
 #     parent_dir,
-#     '11N_annual_avg_on_dens_surfaces\\{}_ctd_data_qc.csv'.format(stn))
+#     '11_annual_avg_on_dens_surfaces\\{}_data.csv'.format(stn)
+# )
+# # average_file = os.path.join(
+# #     parent_dir,
+# #     '11N_annual_avg_on_dens_surfaces\\{}_ctd_data_qc.csv'.format(stn))
+#
+# plot_name = average_file.replace(
+#     '.csv',
+#     '_oxy_vs_pot_dens_anom_{}degfit_1950-2023.png'.format(best_fit_degrees))
+#
+# # Why is best fit truncated early in Crawford and Pena (2020)? How to do?
+# plot_avg_oxy_on_density_surfaces(average_file, plot_name,
+#                                  station_name, True, best_fit_degrees,
+#                                  first_year_to_plot)
 
-plot_name = average_file.replace(
-    '.csv',
-    '_oxy_vs_pot_dens_anom_{}degfit_1950-2022.png'.format(best_fit_degrees))
+# ---------------------------Bill data---------------------------------
+# uncomment to plot bill's data
+"""
+bill_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+           'line_P_data_products\\bill_crawford\\masked\\'
 
-# Why is best fit truncated early in Crawford and Pena (2020)? How to do?
-plot_avg_oxy_on_density_surfaces(average_file, plot_name,
-                                 station_name, True, best_fit_degrees,
-                                 first_year_to_plot)
+p26_file = bill_dir + 'CrawfordPena Line P 1950-2015 26 oxy annual avg.csv'
 
-# # ---------------------------Bill data---------------------------------
-# # uncomment to plot bill's data
-# """
-# bill_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-#            'line_P_data_products\\bill_crawford\\masked\\'
-#
-# p26_file = bill_dir + 'CrawfordPena Line P 1950-2015 26 oxy annual avg.csv'
-#
-# p4_file = bill_dir + 'CrawfordPena Line P 1950-2015 4849 oxy annual avg.csv'
-#
-# bill_p26_plot_name = bill_dir + 'CrawfordPena P26 1950-2015 oxy vs sigma-theta.png'
-# bill_p4_plot_name = bill_dir + 'CrawfordPena P4 1950-2015 oxy vs sigma-theta.png'
-#
-# # P26 P4
-# station_name = 'P26'
-# plot_avg_oxy_on_density_surfaces(p26_file, bill_p26_plot_name,
-#                                  station_name, include_fit=True, fit_deg=1)
-#
-# station_name = 'P4'
-# plot_avg_oxy_on_density_surfaces(p4_file, bill_p4_plot_name,
-#                                  station_name, include_fit=True, fit_deg=2)
-# """
-#
-# bill_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-#            'line_P_data_products\\bill_crawford\\'
-#
-# bill_p4_files = glob.glob(bill_dir + '*4849*_Nov2022.csv')
-# bill_p4_files.sort()
-# bill_p26_files = glob.glob(bill_dir + '*26_Nov2022.csv')
-# bill_p26_files.sort()
-#
-# indf = pd.read_csv(bill_p4_files[0])
-#
-# stn = 'P4'
-# update_bill_oxy_plot(*bill_p4_files, stn, 2,
-#                      bill_dir + f'CrawfordPena_{stn}_1950-2022_o2.png')
-#
-# stn = 'P26'
-# update_bill_oxy_plot(*bill_p26_files, stn, 1,
-#                      bill_dir + f'CrawfordPena_{stn}_1955-2022_o2.png')
-#
-# # # Check if any rows are missing oxygen data
-# # print(indf.loc[pd.isna(indf['Ox (umol/kg) '])])
-# # # Convert oxy units of these data to umol/kg
-# # # Compute density from absolute salinity and conservative temperature
-# # mask = pd.isna(indf['Ox (umol/kg) '])
-# # pressure = gsw.p_from_z(-indf.loc[mask, 'Depth'].to_numpy(float),
-# #                         indf.loc[mask, 'Latitude'].to_numpy(float))
-# # density = gsw.rho(indf.loc[mask, 'Absolute Salinity'].to_numpy(float),
-# #                   indf.loc[mask, 'Conservative Temperature'].to_numpy(float),
-# #                   pressure)
-# # indf.loc[mask, 'Ox (umol/kg) '] = [
-# #     o * OXY_UMOL_PER_ML / (d * M3_PER_L)
-# #     for o, d in zip(indf.loc[mask, 'Ox (ml/L)'].to_numpy(float),
-# #                     density)
-# # ]
+p4_file = bill_dir + 'CrawfordPena Line P 1950-2015 4849 oxy annual avg.csv'
+
+bill_p26_plot_name = bill_dir + 'CrawfordPena P26 1950-2015 oxy vs sigma-theta.png'
+bill_p4_plot_name = bill_dir + 'CrawfordPena P4 1950-2015 oxy vs sigma-theta.png'
+
+# P26 P4
+station_name = 'P26'
+plot_avg_oxy_on_density_surfaces(p26_file, bill_p26_plot_name,
+                                 station_name, include_fit=True, fit_deg=1)
+
+station_name = 'P4'
+plot_avg_oxy_on_density_surfaces(p4_file, bill_p4_plot_name,
+                                 station_name, include_fit=True, fit_deg=2)
+"""
+
+bill_dir = 'D:\\charles\\line_P_data_products\\bill_crawford\\'
+
+bill_p4_files = glob.glob(bill_dir + '*4849*_May2023.csv')
+bill_p4_files.sort()
+bill_p26_files = glob.glob(bill_dir + '*26_May2023.csv')
+bill_p26_files.sort()
+
+indf = pd.read_csv(bill_p4_files[0])
+
+stn = 'P4'
+update_bill_oxy_plot(*bill_p4_files, stn, fit_deg=2,
+                     png_name=bill_dir + f'CrawfordPena_{stn}_1950-2023_o2.png')
+
+stn = 'OSP'
+update_bill_oxy_plot(*bill_p26_files, stn, fit_deg=1,
+                     png_name=bill_dir + f'CrawfordPena_{stn}_1955-2023_o2.png')
+
+
+# # -----------------Check if any rows are missing oxygen data-------------------
+# print(indf.loc[pd.isna(indf['Ox (umol/kg) '])])
+# # Convert oxy units of these data to umol/kg
+# # Compute density from absolute salinity and conservative temperature
+# mask = pd.isna(indf['Ox (umol/kg) '])
+# pressure = gsw.p_from_z(-indf.loc[mask, 'Depth'].to_numpy(float),
+#                         indf.loc[mask, 'Latitude'].to_numpy(float))
+# density = gsw.rho(indf.loc[mask, 'Absolute Salinity'].to_numpy(float),
+#                   indf.loc[mask, 'Conservative Temperature'].to_numpy(float),
+#                   pressure)
+# indf.loc[mask, 'Ox (umol/kg) '] = [
+#     o * OXY_UMOL_PER_ML / (d * M3_PER_L)
+#     for o, d in zip(indf.loc[mask, 'Ox (ml/L)'].to_numpy(float),
+#                     density)
+# ]
