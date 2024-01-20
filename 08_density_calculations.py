@@ -10,6 +10,7 @@ from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 import convert
 from tqdm import trange
+from helpers import get_profile_st_en_idx
 
 # Charles Line P data product request
 
@@ -69,18 +70,6 @@ def calculate_pot_dens_anom(
     # density minus 1000 kg/m^3
     pot_dens_anom = gsw.sigma0(salinity_SA, temperature_conserv)
     return pot_dens_anom
-
-
-def get_profile_st_en_idx(profile_numbers):
-    # Get start and end indices of a cast in a dataframe
-    # based on the assumption that each cast has a unique profile number
-    profile_start_idx = np.unique(profile_numbers,
-                                  return_index=True)[1]
-    # Minus 1 to account for pandas inclusive indexing
-    profile_end_idx = np.concatenate(
-        (profile_start_idx[1:] - 1, np.array([len(profile_numbers)]))
-    )
-    return profile_start_idx, profile_end_idx
 
 
 # def interp_oxy_to_density_surfaces(df_file_name: str, out_df_name: str,
@@ -215,7 +204,7 @@ def get_profile_st_en_idx(profile_numbers):
 # Selected density surfaces: 1026.5 to 1026.9 kg/m^3
 # Make a plot with all three oxygen vs density surface on it
 # for each station: P4 and P26, LB08
-stn = 'P26'
+stn = 'P4'
 station_name = stn
 # station_name = 'OSP'
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
@@ -223,7 +212,9 @@ station_name = stn
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #              'bottom_oxygen\\'
 
-parent_dir = 'D:\\lineP\\csv_data\\'
+parent_dir = 'D:\\lineP\\processing\\'
+# parent_dir = ('C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\'
+#               'update_jan2024_sopo\\csv_data\\')
 
 in_dir = '04_inexact_duplicate_check\\'
 in_file = os.path.join(
@@ -294,7 +285,7 @@ df_in.to_csv(density_file, index=False)
 
 # densities = np.array([1026.5, 1026.7, 1026.9])
 
-potential_densities = np.array([26.5, 26.7, 26.9])
+# potential_densities = np.array([26.5, 26.7, 26.9])
 
 # # -----Test-----
 # idx = np.max(in_df.loc[:, 'Profile number'])
