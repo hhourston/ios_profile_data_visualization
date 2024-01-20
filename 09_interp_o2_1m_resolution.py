@@ -54,14 +54,21 @@ def interp_1m_resolution(in_df_name: str, out_df_name: str,
         en = profile_end_idx[i]
 
         # Evaluate conditions for no interpolation
+
+        # Profile only contains one measurement
         profile_has_len_1 = st == en
+
+        # Profile is high resolution with measurements spaced less than 1.5 m apart in the water column
         profile_is_high_res = np.all(
             np.diff(in_df.loc[st:en, 'Depth [m]']) < 1.5
         ) if not profile_has_len_1 else False
+
+        # Profile is too low resolution with measurements spaced more than 0.2 sigma-theta units apart
         profile_spaced_too_far = np.all(np.diff(
             in_df.loc[st:en, 'Potential density anomaly [kg/m]']) > 0.2
         ) if not profile_has_len_1 else False
 
+        # Oxygen measurements are all nans
         if all(np.isnan(in_df.loc[st:en, 'Oxygen [umol/kg]'].to_numpy())):
             # Skip the profile
             counter_profiles_all_nan += 1
@@ -101,13 +108,12 @@ def interp_1m_resolution(in_df_name: str, out_df_name: str,
             )
             interp_density_fn = interp1d(
                 in_df.loc[st:en, 'Depth [m]'].to_numpy(float),
-                in_df.loc[st:en, 'Potential density anomaly [kg/m]'
-                          ].to_numpy(float),
+                in_df.loc[st:en, 'Potential density anomaly [kg/m]'].to_numpy(float),
                 kind='linear',
                 bounds_error=False,
                 fill_value=np.nan
             )
-            # +1 since numpy range not inclusive
+            # +1 since numpy range not inclusive of end, but pandas range is inclusive
             depth_1m_freq = np.arange(
                 np.nanmin(in_df.loc[st:en, 'Depth [m]'].to_numpy(float)),
                 np.nanmax(in_df.loc[st:en, 'Depth [m]'].to_numpy(float)) + 1)
@@ -126,8 +132,7 @@ def interp_1m_resolution(in_df_name: str, out_df_name: str,
                                               interpolated_profile_len),
                 'Longitude [deg E]': np.repeat(in_df.loc[st, 'Longitude [deg E]'],
                                                interpolated_profile_len),
-                'Time': np.repeat(in_df.loc[st, 'Time'],
-                                  interpolated_profile_len),
+                'Time': np.repeat(in_df.loc[st, 'Time'], interpolated_profile_len),
                 'Depth [m]': depth_1m_freq,
                 'Profile is interpolated': np.ones(interpolated_profile_len),
                 'Oxygen [umol/kg]': oxy_interpolated,
@@ -179,7 +184,7 @@ def interp_1m_resolution(in_df_name: str, out_df_name: str,
 # ----------Interpolate O2 to 1m resolution-----------
 
 # for each station: P4 and P26, LB08
-stn = 'P4'
+stn = 'P26'
 station_name = stn
 # station_name = 'OSP'
 
@@ -188,7 +193,9 @@ station_name = stn
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #              'bottom_oxygen\\'
 
-parent_dir = 'D:\\lineP\\csv_data\\'
+parent_dir = 'D:\\lineP\\processing\\'
+# parent_dir = ('C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\'
+#               'update_jan2024_sopo\\csv_data\\')
 
 density_dir = '08_potential_density_anomalies\\'
 
