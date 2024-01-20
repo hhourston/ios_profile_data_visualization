@@ -18,8 +18,7 @@ def bin_o2_to_select_densities(in_df_name: str, out_df_name: str,
     close_criteria = 0.005
     # Only bin one value per select density per profile
 
-    in_df['Potential density anomaly bin [kg/m]'] = np.repeat(
-        np.nan, len(in_df))
+    in_df['Potential density anomaly bin [kg/m]'] = np.repeat(np.nan, len(in_df))
     # in_df['Potential density anomaly bin is dupl'] = np.zeros(len(in_df))
 
     # for d in select_densities:
@@ -48,7 +47,8 @@ def bin_o2_to_select_densities(in_df_name: str, out_df_name: str,
             abs_density_diffs = abs(
                 in_df.loc[st:en, 'Potential density anomaly [kg/m]'] - d
             )
-            if np.nanmin(abs_density_diffs) < close_criteria:
+            # Criteria is "within 0.005" so take it to mean inclusive (<= not <) of 0.005
+            if np.nanmin(abs_density_diffs) <= close_criteria:
                 # argmin returns the index of the minimum value
                 in_df.loc[np.nanargmin(abs_density_diffs) + st,
                           'Potential density anomaly bin [kg/m]'] = d
@@ -80,7 +80,7 @@ def bin_o2_to_select_densities(in_df_name: str, out_df_name: str,
     # Compute the float format year to agree with Bill's datasets
     # First must convert Time to datetime format
     out_df['Time_dt'] = out_df['Time'].apply(lambda x: pd.to_datetime(x))
-    out_df['Year'] = out_df['Time_dt'].apply(lambda x: x.year + x.dayofyear/365)
+    out_df['Year'] = out_df['Time_dt'].apply(lambda x: x.year + x.dayofyear/365.2425)  # Make more precise
     out_df['Day of year'] = out_df['Time_dt'].apply(lambda x: x.dayofyear)
     out_df.drop(columns='Time_dt', inplace=True)
 
@@ -112,15 +112,17 @@ def bin_o2_to_select_densities(in_df_name: str, out_df_name: str,
 # Bin the 1m resolution oxygen data to the select densities
 
 # for each station: P4 and P26, LB08
-stn = 'P26'
-station_name = stn
+stn = 'P4'
+# station_name = stn
 # station_name = 'OSP'
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #              'line_P_data_products\\csv\\has_osd_ctd_flags\\'
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #              'bottom_oxygen\\'
 
-parent_dir = 'D:\\lineP\\csv_data\\'
+parent_dir = 'D:\\lineP\\processing\\'
+# parent_dir = ('C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\'
+#               'update_jan2024_sopo\\csv_data\\')
 
 o2_interp_dir = '09_interpolate_o2_to_1m_res'
 o2_interp_file = os.path.join(parent_dir, o2_interp_dir,
