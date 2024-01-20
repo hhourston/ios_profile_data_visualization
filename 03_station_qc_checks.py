@@ -15,6 +15,7 @@ OSP_SEARCH_RADIUS = 24.896972239634337  # half the distance from P35 to P26
 P4_SEARCH_RADIUS = max(
     [24.65056612250387, 37.00682860346698]
 )/2  # 1/2 the distance from p4 to p5; distance (p3 to p4) < distance (p4 to p5)
+deg2km = 111.32  # km/decimal degree
 
 
 def oxy_ml_l_to_umol_kg(var_df):
@@ -77,13 +78,8 @@ def range_check(depth, var_data, range_df):
             # range_cond = range_df.loc[j, 'Coast_N_Pacific_min'] <= var_df.loc[
             #     i, var] <= range_df.loc[j, 'Coast_N_Pacific_max']
 
-            depth_cond = range_df.loc[
-                             j, 'Depth_min'] <= depth[i] <= range_df.loc[
-                             j, 'Depth_max']
-            range_cond = range_df.loc[
-                             j, 'Coast_N_Pacific_min'
-                         ] <= var_data[i] <= range_df.loc[
-                j, 'Coast_N_Pacific_max']
+            depth_cond = range_df.loc[j, 'Depth_min'] <= depth[i] <= range_df.loc[j, 'Depth_max']
+            range_cond = range_df.loc[j, 'Coast_N_Pacific_min'] <= var_data[i] <= range_df.loc[j, 'Coast_N_Pacific_max']
 
             if depth_cond and not range_cond:
                 # Flag the df row if value is not within accepted range
@@ -104,7 +100,7 @@ def depth_inv_check(var_df):
     # Profile start indices
     prof_start_ind = np.unique(var_df.loc[:, 'Profile number'],
                                return_index=True)[1]
-    # Profile end indices
+    # Profile end indices (not inclusive of the end)
     prof_end_ind = np.concatenate((prof_start_ind[1:], [nobs]))
 
     # Iterate through all of the profiles
@@ -206,7 +202,8 @@ def main(station, inFilePath: str, outFilePath: str,
     :param inFilePath: absolute path
     :param outFilePath: absolute path
     :param coord_check_type: 'planar' or 'haversine'
-    :param coord_check_limit_km:
+    :param coord_check_limit_km: half of box side length for planar distance check,
+    or the search radius for a station for haversine distance check
     :param station_coords: must provide station_coords (lat, lon) for haversine
     :return:
     """
@@ -232,21 +229,26 @@ def main(station, inFilePath: str, outFilePath: str,
         station, np.nanmin(ctd_df.loc[:, 'Longitude [deg E]']),
         np.nanmax(ctd_df.loc[:, 'Longitude [deg E]'])))
 
+    # The limit used in Cummins & Ross (2020)
+    if coord_check_limit_km is None:
+        coord_check_limit_km = 24
+
     if coord_check_type == 'planar':
         # Set maximum variation limit from median
         # 2022-09-06 reduced from 0.1 to 0.075
-        limit = 0.075 if station_coords is None else station_coords
-        latlon_mask = (ctd_df.loc[:, 'Latitude [deg N]'] > median_lat - limit) & \
-                      (ctd_df.loc[:, 'Latitude [deg N]'] < median_lat + limit) & \
-                      (ctd_df.loc[:, 'Longitude [deg E]'] > median_lon - limit) & \
-                      (ctd_df.loc[:, 'Longitude [deg E]'] < median_lon + limit)
+        limit_deg = coord_check_limit_km / deg2km
+        # latlon_mask = (ctd_df.loc[:, 'Latitude [deg N]'] > median_lat - limit) & \
+        #               (ctd_df.loc[:, 'Latitude [deg N]'] < median_lat + limit) & \
+        #               (ctd_df.loc[:, 'Longitude [deg E]'] > median_lon - limit) & \
+        #               (ctd_df.loc[:, 'Longitude [deg E]'] < median_lon + limit)
+        latlon_mask = (ctd_df.loc[:, 'Latitude [deg N]'] > station_coords[0] - limit_deg) & \
+                      (ctd_df.loc[:, 'Latitude [deg N]'] < station_coords[0] + limit_deg) & \
+                      (ctd_df.loc[:, 'Longitude [deg E]'] > station_coords[1] - limit_deg) & \
+                      (ctd_df.loc[:, 'Longitude [deg E]'] < station_coords[1] + limit_deg)
 
         # Apply the mask
         ctd_df_out = ctd_df.loc[latlon_mask, :]
     elif coord_check_type == 'haversine':
-        # The limit used in Cummins & Ross (2020)
-        if coord_check_limit_km is None:
-            coord_check_limit_km = 24
         # Computes distances in km
         distances = np.array([haversine((lat_i, lon_i), station_coords)
                               for lat_i, lon_i in zip(ctd_df.loc[:, 'Latitude [deg N]'],
@@ -390,27 +392,33 @@ def main(station, inFilePath: str, outFilePath: str,
 # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
 #              'our_warming_ocean\\osp_sst\\csv\\'
 
-parent_dir = 'D:\\lineP\\csv_data\\'
+# parent_dir = 'D:\\lineP\\csv_data\\'
+parent_dir = ('C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\'
+              'update_jan2024_sopo\\csv_data\\')
 
 # P4 P26
-sampling_station = 'P26'
+sampling_station = 'P4'
 
 # data_file_path = os.path.join(
 #     parent_dir, '01b_apply_nodc_flags\\{}_NODC_OSD_CTD_data.csv'.format(sampling_station))
 
+# data_file_path = os.path.join(
+#     parent_dir, '01_convert\\{}_WP_CTD_BOT_CHE_data.csv'.format(sampling_station))
+
+# For update Jan 2024 for SOPO
 data_file_path = os.path.join(
-    parent_dir, '01_convert\\{}_WP_CTD_BOT_CHE_data.csv'.format(sampling_station))
+    parent_dir, '01_convert\\{}_CTD_CHE_data.csv'.format(sampling_station))
 
 output_file_path = os.path.join(
     parent_dir, '02_QC', os.path.basename(data_file_path))
 
-main(sampling_station, data_file_path, output_file_path,
-     coord_check_type='haversine', coord_check_limit_km=OSP_SEARCH_RADIUS,
-     station_coords=OSP_COORDINATES)
-
 # main(sampling_station, data_file_path, output_file_path,
-#      coord_check_type='haversine', coord_check_limit_km=P4_SEARCH_RADIUS,
-#      station_coords=P4_COORDINATES)
+#      coord_check_type='haversine', coord_check_limit_km=OSP_SEARCH_RADIUS,
+#      station_coords=OSP_COORDINATES)
+
+main(sampling_station, data_file_path, output_file_path,
+     coord_check_type='haversine', coord_check_limit_km=P4_SEARCH_RADIUS,
+     station_coords=P4_COORDINATES)
 
 # ---------------------------------SSI stations-----------------------------------
 # # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
