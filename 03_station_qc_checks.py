@@ -184,7 +184,7 @@ def plot_after_coord_checks(station, inFilePath, outPNGpath):
 
 
 def main(station, inFilePath: str, outFilePath: str,
-         coord_check_type: str = 'haversine',
+         do_coord_check=True, coord_check_type: str = 'haversine',
          coord_check_limit_km=None, station_coords=None):
     """
     Do quality control checks on the input dataset
@@ -201,6 +201,7 @@ def main(station, inFilePath: str, outFilePath: str,
     :param station: station name
     :param inFilePath: absolute path
     :param outFilePath: absolute path
+    :param do_coord_check: whether or not to check coordinates (True for P4 and P26, false for CS09)
     :param coord_check_type: 'planar' or 'haversine'
     :param coord_check_limit_km: half of box side length for planar distance check,
     or the search radius for a station for haversine distance check
@@ -230,37 +231,41 @@ def main(station, inFilePath: str, outFilePath: str,
         np.nanmax(ctd_df.loc[:, 'Longitude [deg E]'])))
 
     # The limit used in Cummins & Ross (2020)
-    if coord_check_limit_km is None:
-        coord_check_limit_km = 24
+    if do_coord_check:
+        if coord_check_limit_km is None:
+            coord_check_limit_km = 24
 
-    if coord_check_type == 'planar':
-        # Set maximum variation limit from median
-        # 2022-09-06 reduced from 0.1 to 0.075
-        limit_deg = coord_check_limit_km / deg2km
-        # latlon_mask = (ctd_df.loc[:, 'Latitude [deg N]'] > median_lat - limit) & \
-        #               (ctd_df.loc[:, 'Latitude [deg N]'] < median_lat + limit) & \
-        #               (ctd_df.loc[:, 'Longitude [deg E]'] > median_lon - limit) & \
-        #               (ctd_df.loc[:, 'Longitude [deg E]'] < median_lon + limit)
-        latlon_mask = (ctd_df.loc[:, 'Latitude [deg N]'] > station_coords[0] - limit_deg) & \
-                      (ctd_df.loc[:, 'Latitude [deg N]'] < station_coords[0] + limit_deg) & \
-                      (ctd_df.loc[:, 'Longitude [deg E]'] > station_coords[1] - limit_deg) & \
-                      (ctd_df.loc[:, 'Longitude [deg E]'] < station_coords[1] + limit_deg)
+        if coord_check_type == 'planar':
+            # Set maximum variation limit from median
+            # 2022-09-06 reduced from 0.1 to 0.075
+            limit_deg = coord_check_limit_km / deg2km
+            # latlon_mask = (ctd_df.loc[:, 'Latitude [deg N]'] > median_lat - limit) & \
+            #               (ctd_df.loc[:, 'Latitude [deg N]'] < median_lat + limit) & \
+            #               (ctd_df.loc[:, 'Longitude [deg E]'] > median_lon - limit) & \
+            #               (ctd_df.loc[:, 'Longitude [deg E]'] < median_lon + limit)
+            latlon_mask = (ctd_df.loc[:, 'Latitude [deg N]'] > station_coords[0] - limit_deg) & \
+                          (ctd_df.loc[:, 'Latitude [deg N]'] < station_coords[0] + limit_deg) & \
+                          (ctd_df.loc[:, 'Longitude [deg E]'] > station_coords[1] - limit_deg) & \
+                          (ctd_df.loc[:, 'Longitude [deg E]'] < station_coords[1] + limit_deg)
 
-        # Apply the mask
-        ctd_df_out = ctd_df.loc[latlon_mask, :]
-    elif coord_check_type == 'haversine':
-        # Computes distances in km
-        distances = np.array([haversine((lat_i, lon_i), station_coords)
-                              for lat_i, lon_i in zip(ctd_df.loc[:, 'Latitude [deg N]'],
-                                                      ctd_df.loc[:, 'Longitude [deg E]'])])
-        latlon_mask = distances <= coord_check_limit_km
-        ctd_df_out = ctd_df.loc[latlon_mask, :]
+            # Apply the mask
+            ctd_df_out = ctd_df.loc[latlon_mask, :]
+        elif coord_check_type == 'haversine':
+            # Computes distances in km
+            distances = np.array([haversine((lat_i, lon_i), station_coords)
+                                  for lat_i, lon_i in zip(ctd_df.loc[:, 'Latitude [deg N]'],
+                                                          ctd_df.loc[:, 'Longitude [deg E]'])])
+            latlon_mask = distances <= coord_check_limit_km
+            ctd_df_out = ctd_df.loc[latlon_mask, :]
+        else:
+            print(f'coord_check method {coord_check_type} is invalid')
+            return
+
+        # Reset the index
+        ctd_df_out.reset_index(drop=True, inplace=True)
+
     else:
-        print(f'coord_check method {coord_check_type} is invalid')
-        return
-
-    # Reset the index
-    ctd_df_out.reset_index(drop=True, inplace=True)
+        ctd_df_out = ctd_df.copy(deep=True)
 
     # ------------------------Data checks from NEP climatology------------------------
 
@@ -363,8 +368,9 @@ def main(station, inFilePath: str, outFilePath: str,
         txtfile.write('Output file: {}\n'.format(outFilePath))
         txtfile.write(
             'Number of input observations: {}\n'.format(len(ctd_df)))
-        txtfile.write(
-            'Number of obs passing lat/lon check: {}\n'.format(sum(latlon_mask)))
+        if do_coord_check:
+            txtfile.write(
+                'Number of obs passing lat/lon check: {}\n'.format(sum(latlon_mask)))
         txtfile.write(
             'Number of obs passing depth limits check: {}\n'.format(sum(depth_lim_mask)))
         txtfile.write(
@@ -388,72 +394,94 @@ def main(station, inFilePath: str, outFilePath: str,
     return
 
 
-# ------------------------------Line P---------------------------------
-# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-#              'our_warming_ocean\\osp_sst\\csv\\'
+# ------------------------------CS09----------------------------------
 
-# parent_dir = 'D:\\lineP\\csv_data\\'
-parent_dir = ('C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\'
-              'update_jan2024_sopo\\csv_data\\')
-
-# P4 P26
-sampling_station = 'P4'
-
-# data_file_path = os.path.join(
-#     parent_dir, '01b_apply_nodc_flags\\{}_NODC_OSD_CTD_data.csv'.format(sampling_station))
-
-# data_file_path = os.path.join(
-#     parent_dir, '01_convert\\{}_WP_CTD_BOT_CHE_data.csv'.format(sampling_station))
-
-# For update Jan 2024 for SOPO
+parent_dir = 'C:\\Users\\hourstonh\\Documents\\charles\\more_oxygen_projects\\'
+sampling_station = 'CS09'
 data_file_path = os.path.join(
-    parent_dir, '01_convert\\{}_CTD_CHE_data.csv'.format(sampling_station))
-
+    parent_dir,
+    f'{sampling_station}_02b_remove_casts_missing_o2',
+    f'{sampling_station}_CTD_BOT_CHE_data.csv'
+)
 output_file_path = os.path.join(
-    parent_dir, '02_QC', os.path.basename(data_file_path))
+    parent_dir,
+    f'{sampling_station}_03_station_qc_checks',
+    os.path.basename(data_file_path)
+)
 
-# main(sampling_station, data_file_path, output_file_path,
-#      coord_check_type='haversine', coord_check_limit_km=OSP_SEARCH_RADIUS,
-#      station_coords=OSP_COORDINATES)
+main(sampling_station, data_file_path, output_file_path, do_coord_check=False)
 
-main(sampling_station, data_file_path, output_file_path,
-     coord_check_type='haversine', coord_check_limit_km=P4_SEARCH_RADIUS,
-     station_coords=P4_COORDINATES)
-
-# ---------------------------------SSI stations-----------------------------------
-# # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
-# # P4 P26
-# sampling_station = 'P26'
-# # data_types = 'ctd'
-# # data_types = 'CTD_BOT_CHE_OSD'
-# parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-#              'line_P_data_products\\csv\\has_osd_ctd_flags\\'
+# ------------------------------Line P---------------------------------
+# # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+# #              'our_warming_ocean\\osp_sst\\csv\\'
 #
+# # parent_dir = 'D:\\lineP\\csv_data\\'
+# parent_dir = ('C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\'
+#               'update_jan2024_sopo\\csv_data\\')
+#
+# # P4 P26
+# sampling_station = 'P4'
+#
+# # data_file_path = os.path.join(
+# #     parent_dir, '01b_apply_nodc_flags\\{}_NODC_OSD_CTD_data.csv'.format(sampling_station))
+#
+# # data_file_path = os.path.join(
+# #     parent_dir, '01_convert\\{}_WP_CTD_BOT_CHE_data.csv'.format(sampling_station))
+#
+# # For update Jan 2024 for SOPO
 # data_file_path = os.path.join(
-#     parent_dir, '02_merge\\{}_data.csv'.format(sampling_station))
+#     parent_dir, '01_convert\\{}_CTD_CHE_data.csv'.format(sampling_station))
 #
 # output_file_path = os.path.join(
-#     parent_dir, '03_QC', os.path.basename(data_file_path))
+#     parent_dir, '02_QC', os.path.basename(data_file_path))
 #
-# main(sampling_station, data_file_path, output_file_path)
-
-# for s in ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']:
-#     data_file_path = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
-#                      'csv\\{}_{}_data.csv'.format(s, data_types)
-#     output_file_dir = os.path.dirname(data_file_path)
-#     output_file_path = os.path.join(
-#         output_file_dir, os.path.basename(data_file_path).replace('.csv', '_qc.csv'))
+# # main(sampling_station, data_file_path, output_file_path,
+# #      coord_check_type='haversine', coord_check_limit_km=OSP_SEARCH_RADIUS,
+# #      station_coords=OSP_COORDINATES)
 #
-#     main(s, data_file_path, output_file_path)
+# main(sampling_station, data_file_path, output_file_path,
+#      do_coord_check=True, coord_check_type='haversine',
+#      coord_check_limit_km=P4_SEARCH_RADIUS,
+#      station_coords=P4_COORDINATES)
 
-# --------------------------------------------------------------------
-# # Testing stations for missing data at depth
-# # LBP3 LB08
-# sampling_station = 'LBP3'
-# data_types = 'ctd'
-# LB_file = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
-#           '{}_{}_data.csv'.format(sampling_station, data_types)
-# output_file_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\'
-# png_path = os.path.join(output_file_dir, '{}_{}_depth_vs_time.png'.format(
-#     sampling_station, data_types))
-# plot_after_coord_checks(sampling_station, LB_file, png_path)
+# ---------------------------------SSI stations-----------------------------------
+
+
+def run_ssi_stations():
+    # # 'SI01'  # '59'  # '42'  # 'GEO1'  # 'LBP3'  # 'LB08'  # 'P1'
+    # # P4 P26
+    # sampling_station = 'P26'
+    # # data_types = 'ctd'
+    # # data_types = 'CTD_BOT_CHE_OSD'
+    # parent_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+    #              'line_P_data_products\\csv\\has_osd_ctd_flags\\'
+    #
+    # data_file_path = os.path.join(
+    #     parent_dir, '02_merge\\{}_data.csv'.format(sampling_station))
+    #
+    # output_file_path = os.path.join(
+    #     parent_dir, '03_QC', os.path.basename(data_file_path))
+    #
+    # main(sampling_station, data_file_path, output_file_path)
+
+    # for s in ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']:
+    #     data_file_path = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\' \
+    #                      'csv\\{}_{}_data.csv'.format(s, data_types)
+    #     output_file_dir = os.path.dirname(data_file_path)
+    #     output_file_path = os.path.join(
+    #         output_file_dir, os.path.basename(data_file_path).replace('.csv', '_qc.csv'))
+    #
+    #     main(s, data_file_path, output_file_path)
+
+    # --------------------------------------------------------------------
+    # # Testing stations for missing data at depth
+    # # LBP3 LB08
+    # sampling_station = 'LBP3'
+    # data_types = 'ctd'
+    # LB_file = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\' \
+    #           '{}_{}_data.csv'.format(sampling_station, data_types)
+    # output_file_dir = 'C:\\Users\\HourstonH\\Documents\\ctd_visualization\\csv\\'
+    # png_path = os.path.join(output_file_dir, '{}_{}_depth_vs_time.png'.format(
+    #     sampling_station, data_types))
+    # plot_after_coord_checks(sampling_station, LB_file, png_path)
+    return

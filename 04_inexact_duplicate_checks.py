@@ -4,6 +4,7 @@ from tqdm import trange
 import os
 from helpers import get_profile_st_en_idx
 
+
 # Need to do inexact duplicate checking if there are bottle
 # and CTD data from the same time/location
 # Keep the CTD data since it's higher resolution
@@ -21,7 +22,7 @@ def time_is_close(t1: pd.Timestamp, t2: pd.Timestamp, criteria):
 
 
 def is_ios_profile(fname: str):
-    """Detect whether file is from IOS assuming it has format YYYY-AAA-BBB.qrx.nc,
+    """Detect whether netcdf file is from IOS assuming it has format YYYY-AAA-BBB.qrx.nc,
     where YYYY is the year, AAA the cruise number, and BBB the event number.
     qrx is the instrument type: ctd, che, or bot"""
     fname_no_ext = fname.split('.')[0]
@@ -38,45 +39,9 @@ def ios_profiles_match(fname1: str, fname2: str):
     return is_ios_profile(fname1) and is_ios_profile(fname2) and fname1.split('.')[0] == fname2.split('.')[0]
 
 
-# P4 P26
-for sampling_station in ['P4', 'P26']:
-    # data_types = 'ctd'
-    # data_types = 'CTD_BOT_CHE_OSD'
-
-    # input_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-    #              'line_P_data_products\\csv\\has_osd_ctd_flags\\03_QC\\'
-
-    # input_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-    #              'our_warming_ocean\\osp_sst\\csv\\03_QC\\'
-
-    # data_file_path = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-    #                  'line_P_data_products\\csv\\03_QC\\' \
-    #                  '{}_{}_data.csv'.format(sampling_station, data_types)
-
-    # input_file_path = os.path.join(
-    #     input_dir, '{}_data.csv'.format(sampling_station))
-
-    # output_file_path = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
-    #                    'line_P_data_products\\csv\\' \
-    #                    '{}_{}_data_idc.csv'.format(sampling_station, data_types)
-    # ----------------------------------------------------------------------------
-
-    input_dir = 'D:\\lineP\\processing\\03_merge\\'
-    input_file_path = os.path.join(input_dir, '{}_data.csv'.format(sampling_station))
-    output_file_path = input_file_path.replace(
-        '03_merge', '04_inexact_duplicate_check')
-
-    # -------2024 update-------
-    # input_dir = ('C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\'
-    #              'update_jan2024_sopo\\csv_data\\02_QC\\')
-    #
-    # input_file_path = os.path.join(input_dir, '{}_CTD_CHE_data.csv'.format(sampling_station))
-    #
-    # output_file_path = input_file_path.replace('02_QC', '04_inexact_duplicate_check')
-
-    # Iterate through all the profile numbers
-    # If there is a match of time/lat/lon, keep the profile
-    # that has more measurements in it (corresponding to CTD)
+def run_check(input_file_path, output_file_path, sampling_station):
+    # With a set of duplicates,
+    # check which profile is longer and flag the shorter one as an inexact duplicate
 
     dfin = pd.read_csv(input_file_path)
 
@@ -133,7 +98,7 @@ for sampling_station in ['P4', 'P26']:
                 len(profile_start_idx)))
         txtfile.write(
             'Number of profiles out: {}\n\n'.format(
-                sum(dfin.loc[profile_start_idx,'Inexact_duplicate_flag'] == 0)))
+                sum(dfin.loc[profile_start_idx, 'Inexact_duplicate_flag'] == 0)))
 
     # Apply the inexact duplicate flag
     msk = dfin.loc[:, 'Inexact_duplicate_flag'] == 0
@@ -144,3 +109,69 @@ for sampling_station in ['P4', 'P26']:
 
     # Save the dataframe to csv
     dfout.to_csv(output_file_path, index=False)
+    return
+
+
+def run_cs09():
+    sampling_station = 'CS09'
+    # input_dir = (f'C:\\Users\\hourstonh\\Documents\\charles\\more_oxygen_projects\\'
+    #              f'{sampling_station}_03_station_qc_checks\\')
+    # input_file_path = os.path.join(input_dir, '{}_CTD_BOT_CHE_data.csv'.format(sampling_station))
+    # output_file_path = input_file_path.replace(
+    #     '03_station_qc_checks', '04_inexact_duplicate_checks'
+    # )
+    input_dir = (f'C:\\Users\\hourstonh\\Documents\\charles\\more_oxygen_projects\\'
+                 f'{sampling_station}_02b_remove_casts_missing_o2\\')
+    input_file_path = os.path.join(input_dir, '{}_CTD_BOT_CHE_data.csv'.format(sampling_station))
+    output_file_path = input_file_path.replace(
+        '02b_remove_casts_missing_o2', '04_inexact_duplicate_checks_skip03'
+    )
+
+    run_check(input_file_path, output_file_path, sampling_station)
+
+    return
+
+
+def run_line_p():
+    for sampling_station in ['P4', 'P26']:
+        # data_types = 'ctd'
+        # data_types = 'CTD_BOT_CHE_OSD'
+
+        # input_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+        #              'line_P_data_products\\csv\\has_osd_ctd_flags\\03_QC\\'
+
+        # input_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+        #              'our_warming_ocean\\osp_sst\\csv\\03_QC\\'
+
+        # data_file_path = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+        #                  'line_P_data_products\\csv\\03_QC\\' \
+        #                  '{}_{}_data.csv'.format(sampling_station, data_types)
+
+        # input_file_path = os.path.join(
+        #     input_dir, '{}_data.csv'.format(sampling_station))
+
+        # output_file_path = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
+        #                    'line_P_data_products\\csv\\' \
+        #                    '{}_{}_data_idc.csv'.format(sampling_station, data_types)
+        # ----------------------------------------------------------------------------
+
+        input_dir = 'D:\\lineP\\processing\\03_merge\\'
+        input_file_path = os.path.join(input_dir, '{}_data.csv'.format(sampling_station))
+        output_file_path = input_file_path.replace(
+            '03_merge', '04_inexact_duplicate_check')
+
+        # -------2024 update-------
+        # input_dir = ('C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\'
+        #              'update_jan2024_sopo\\csv_data\\02_QC\\')
+        #
+        # input_file_path = os.path.join(input_dir, '{}_CTD_CHE_data.csv'.format(sampling_station))
+        #
+        # output_file_path = input_file_path.replace('02_QC', '04_inexact_duplicate_check')
+
+        # Iterate through all the profile numbers
+        # If there is a match of time/lat/lon, keep the profile
+        # that has more measurements in it (corresponding to CTD)
+
+        run_check(input_file_path, output_file_path, sampling_station)
+
+        return

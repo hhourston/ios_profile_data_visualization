@@ -85,7 +85,7 @@ def get_oxygen_var(ds: xr.Dataset, temp_data, sal_data, depth_data,
     # DOXYZZ01: has mL/L units; DOXMZZ01: has umol/kg units
     oxygen_names = ["DOXYZZ01", "DOXMZZ01"]
 
-    if required_unit == 'umol/kg':
+    if required_unit.lower() == 'umol/kg':
         # Reverse the order of the list
         oxygen_names = oxygen_names[::-1]
     oxy_variable = get_var(ds, oxygen_names)
@@ -93,7 +93,7 @@ def get_oxygen_var(ds: xr.Dataset, temp_data, sal_data, depth_data,
     if oxy_variable is not None:
         # Find pressure data
         pres_data = get_pressure_var(ds, depth_data, ds.latitude.data)
-        if required_unit == 'mL/L':
+        if required_unit.lower() == 'ml/l':
             oxygen, oxygen_computed, density_assumed = convert.convert_oxygen(
                 oxy_variable, oxy_variable.units, ds.longitude.data,
                 ds.latitude.data, temp_data, sal_data, pres_data,
@@ -126,7 +126,11 @@ def get_oxygen_var(ds: xr.Dataset, temp_data, sal_data, depth_data,
 
 
 def main_ios(nc_list: list, out_file_name: str, oxy_unit: str):
-    # Format input netCDF data for later data preparation steps and plotting
+    """
+    Format input netCDF data for later data preparation steps and plotting
+    Export data in csv format
+    oxy_unit: umol/kg or mL/L
+    """
 
     # Initialize output dataframe
     df_out = pd.DataFrame()
@@ -290,18 +294,36 @@ for s in ['59', '42', 'GEO1', 'LBP3', 'LB08', 'P1']:
 """
 # ----------------------------------------------------------------------
 
+# CS09 data
+stn = 'CS09'
+raw_data_dir = 'C:\\Users\\hourstonh\\Documents\\charles\\more_oxygen_projects\\'
+output_dir = raw_data_dir + 'CS09_01_convert\\'
+raw_wp_files = glob.glob(raw_data_dir + 'CS09\\' + '*.nc')
+data_types = 'CTD_BOT_CHE'
+main_ios(nc_list=raw_wp_files, out_file_name=output_dir + f'{stn}_{data_types}_data.csv',
+         oxy_unit='mL/L')
+
+"""
 # NODC data
 # 'P26' P4
-stn = 'P4'
+stn = 'P26'
 # data_type = 'OSD'
 
-raw_data_dir = 'D:\\lineP\\{}_raw_data\\'.format(stn)
+# raw_data_dir = 'D:\\lineP\\{}_raw_data\\'.format(stn)
+parent_dir = 'C:\\Users\\hourstonh\\Documents\\charles\\line_P_data_products\\update_jan2024\\'
+raw_data_dir = parent_dir + f'{stn}_raw_data\\'
 
-raw_nodc_files = glob.glob(raw_data_dir + 'wodselect\\*.nc')
-raw_wp_files = glob.glob(raw_data_dir + 'water_properties\\*.nc')
+# raw_nodc_files = glob.glob(raw_data_dir + 'wodselect\\*.nc')
+raw_wp_files = glob.glob(raw_data_dir + '*.nc')
 raw_wp_files.sort()
 
-output_dir = 'D:\\lineP\\csv_data\\01_convert\\'
+output_dir = parent_dir + 'csv_data\\01_convert\\'
+data_types = 'CTD_CHE'
+
+main_ios(nc_list=raw_wp_files, out_file_name=output_dir + f'{stn}_{data_types}_data.csv',
+         oxy_unit='umol/kg')
+
+"""
 
 """
 # nodc_file = 'C:\\Users\\HourstonH\\Documents\\charles\\' \
@@ -341,21 +363,21 @@ output_dir = 'C:\\Users\\HourstonH\\Documents\\charles\\our_warming_ocean\\osp_s
 #              '01_convert\\'
 """
 
-# main_nodc(raw_nodc_files, output_dir + '{}_NODC_OSD_CTD_data.csv'.format(stn))
-idx_of_failure = raw_wp_files.index(
-    'D:\\lineP\\P4_raw_data\\water_properties\\2002-038-0025.bot.nc')
-
-idx2_of_failure = raw_wp_files.index(
-    'D:\\lineP\\P4_raw_data\\water_properties\\2016-040-0025.bot.nc')
-
-main_ios(raw_wp_files[:idx_of_failure],
-         output_dir + '{}_WP_CTD_BOT_CHE_data_1933_2002.csv'.format(stn),
-         'umol/kg')
-
-# main_ios(raw_wp_files[idx_of_failure:idx2_of_failure],
-#          output_dir + '{}_WP_CTD_BOT_CHE_data_2002_2016.csv'.format(stn),
+# # main_nodc(raw_nodc_files, output_dir + '{}_NODC_OSD_CTD_data.csv'.format(stn))
+# idx_of_failure = raw_wp_files.index(
+#     'D:\\lineP\\P4_raw_data\\water_properties\\2002-038-0025.bot.nc')
+#
+# idx2_of_failure = raw_wp_files.index(
+#     'D:\\lineP\\P4_raw_data\\water_properties\\2016-040-0025.bot.nc')
+#
+# main_ios(raw_wp_files[:idx_of_failure],
+#          output_dir + '{}_WP_CTD_BOT_CHE_data_1933_2002.csv'.format(stn),
 #          'umol/kg')
-
-# main_ios(raw_wp_files[idx2_of_failure:],
-#          output_dir + '{}_WP_CTD_BOT_CHE_data_2016_2022.csv'.format(stn),
-#          'umol/kg')
+#
+# # main_ios(raw_wp_files[idx_of_failure:idx2_of_failure],
+# #          output_dir + '{}_WP_CTD_BOT_CHE_data_2002_2016.csv'.format(stn),
+# #          'umol/kg')
+#
+# # main_ios(raw_wp_files[idx2_of_failure:],
+# #          output_dir + '{}_WP_CTD_BOT_CHE_data_2016_2022.csv'.format(stn),
+# #          'umol/kg')
