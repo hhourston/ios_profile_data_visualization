@@ -295,3 +295,103 @@ def plot_season_anomalies():
     plt.close(fig)
 
     return
+
+
+def plot_season_anomalies_together():
+    # Max +/- distance away from each depth to include data from
+    # So we look for data between 140m and 160m for the 150m bin
+    max_distance = 10
+
+    # Confirm oxygen units - mL/L
+
+    skip03 = ''  # '_skip03'  # ''
+
+    sampling_station = 'CS09'
+    input_dir = (f'C:\\Users\\hourstonh\\Documents\\charles\\more_oxygen_projects\\'
+                 f'{sampling_station}_04_inexact_duplicate_checks{skip03}\\')
+    input_file_path = os.path.join(
+        input_dir,
+        '{}_CTD_BOT_CHE_data.csv'.format(sampling_station)
+    )
+
+    # Add CS09 data first, after it has been qced
+    df = pd.read_csv(input_file_path)
+
+    # Ignore 200m depth for this...
+    bin_dict = {
+        150: {'mask': mask_rows(df.loc[:, 'Depth [m]'], 150, max_distance)},
+        175: {'mask': mask_rows(df.loc[:, 'Depth [m]'], 175, max_distance)},
+        # 200: index_rows(df.loc[:, 'Depth [m]'], 200, max_distance)
+    }
+
+    # Get the day of year
+    df['Day_of_year'] = [pd.to_datetime(x).day_of_year for x in df.Time_dt]
+
+    # Get year
+    df['Year'] = [pd.to_datetime(x).year for x in df.Time_dt]
+
+    # Convert time to usable format
+    df['Time_dt'] = [np.datetime64(x) for x in df.Time_dt]
+
+    # Get cluster centers
+    # Units in day of year; ignore the day 50 group and day 110ish group
+    # Day 150 group: take from _ to _
+    #     200        take from _ to _
+    #     270        take from 240 to 300 ish
+    # Dict key is the center of the cluster and the Dict value is the range of the cluster
+    season_clusters = {
+        150: {'range': (125, 175)},
+        200: {'range': (175, 225)},
+        270: {'range': (240, 300)}
+    }
+
+    # Compute the mean for each of the 3 clusters for each of 150m and 175m
+    for szn in season_clusters.keys():
+        print('Day', szn)
+        season_clusters[szn]['mask'] = (
+                (df.Day_of_year >= season_clusters[szn]['range'][0]) &
+                (df.Day_of_year <= season_clusters[szn]['range'][1])
+        )
+
+        for depth in bin_dict.keys():
+            bin_dict[depth][szn] = df.loc[
+                bin_dict[depth]['mask'] & season_clusters[szn]['mask'], 'Oxygen [mL/L]'
+            ].mean()
+            print(
+                f'Depth {depth}m mean: {bin_dict[depth][szn]} and group size:',
+                sum(bin_dict[depth]['mask'] & season_clusters[szn]['mask'])
+            )
+
+    fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(4.5, 5.5), sharex=True)
+
+    for i, depth in zip(range(2), bin_dict.keys()):
+        for szn in season_clusters.keys():
+            mask_final = bin_dict[depth]['mask'] & season_clusters[szn]['mask']
+            ax[i].scatter(
+                df.loc[mask_final, 'Time_dt'],
+                df.loc[mask_final, 'Oxygen [mL/L]'] - bin_dict[depth][szn],
+                marker='x',
+                # c='tab:blue'
+                label=f'Day {season_clusters[szn]["range"][0]}-{season_clusters[szn]["range"][1]}'
+            )
+        ax[i].set_title(f'{depth}m')
+        ax[i].set_xlim(left=np.datetime64('1990-01-01'), right=np.datetime64('2025-01-01'))
+        ax[i].tick_params(direction='in', bottom=True, top=True, left=True, right=True)
+        ax[i].set_xticks(
+            ticks=[np.datetime64(str(x)) for x in range(1990, 2026, 5)],
+            labels=np.arange(1990, 2026, 5)
+        )
+        ax[i].set_ylim(-1.5, 1.5)
+        ax[i].set_ylabel('Oxygen anomaly [mL/L]')
+        if i == 1:
+            ax[i].tick_params(axis='x', labelrotation=30)
+
+    plt.legend()
+
+    plt.tight_layout()
+
+    plot_name = os.path.join(WDIR, f'cs09-150m-175m{skip03}_seasonal_anomalies_together.png')
+    plt.savefig(plot_name)
+    plt.close(fig)
+
+    return
